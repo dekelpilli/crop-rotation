@@ -16,13 +16,10 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout master (script only)
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
           ref: master
-          sparse-checkout: |
-            scripts/update_prices.py
-          sparse-checkout-cone-mode: false
 
       - name: Fetch prices
         run: python3 scripts/update_prices.py
@@ -35,6 +32,6 @@ jobs:
           git checkout --orphan data
           git rm -rf . --quiet
           mv /tmp/prices.json prices.json
-          git add prices.json
+          git add -f prices.json
           git commit -m "Update cached prices"
           git push --force origin data
