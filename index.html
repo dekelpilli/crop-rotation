@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Harvest Crop Rotation Optimiser</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --panel: #ffffff;
+    --border: #dcd8d0;
+    --text: #201d19;
+    --muted: #6b6459;
+    --accent: #7a5a2f;
+    --accent-text: #ffffff;
+    --best-bg: #eef6ea;
+    --best-border: #5c8a4a;
+    --input-bg: #ffffff;
+    --track-bg: #eae6de;
+    --mono: "SFMono-Regular", Consolas, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17140f;
+      --panel: #211d17;
+      --border: #3a342a;
+      --text: #ece7dd;
+      --muted: #a89d8a;
+      --accent: #c99a4a;
+      --accent-text: #1a1408;
+      --best-bg: #1f2b19;
+      --best-border: #6fae52;
+      --input-bg: #171310;
+      --track-bg: #2a251c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 0.25rem; }
+  .subtitle { color: var(--muted); margin: 0 0 1.75rem; font-size: 0.95rem; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .panel h2 { font-size: 1rem; margin: 0 0 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 140px; }
+  .field label { font-size: 0.8rem; color: var(--muted); }
+  .field .hint { font-size: 0.72rem; color: var(--muted); }
+  input, select {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.95rem;
+    font-family: var(--mono);
+  }
+  input[type="number"] { width: 9rem; }
+  button {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 6px;
+    padding: 0.55rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: 0.6; cursor: default; }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-weight: 500;
+  }
+  .status { margin-top: 0.75rem; font-size: 0.85rem; color: var(--muted); min-height: 1.2em; }
+  .status.error { color: #c0503a; }
+  .status.ok { color: #5c8a4a; }
+  .progress-track {
+    width: 100%; height: 6px; border-radius: 3px; background: var(--track-bg);
+    overflow: hidden; margin-top: 0.75rem;
+  }
+  .progress-bar { height: 100%; width: 0%; background: var(--accent); transition: width 0.1s linear; }
+  .colour-dot { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; margin-right: 0.4em; vertical-align: middle; }
+  .dot-primal { background: #4f8fd6; }
+  .dot-vivid { background: #d6c34f; }
+  .dot-wild { background: #9a5fc9; }
+  .table-scroll { max-height: 560px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { padding: 0.5rem 0.6rem; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    color: var(--muted); font-weight: 600; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em;
+    position: sticky; top: 0; background: var(--panel); z-index: 1;
+  }
+  tbody tr.best { background: var(--best-bg); }
+  tbody tr.best td:first-child { border-left: 3px solid var(--best-border); }
+  .target-badge {
+    display: inline-flex; align-items: center; font-size: 0.78rem; font-weight: 600;
+    border: 1px solid var(--accent); border-radius: 4px; padding: 0.1rem 0.45rem;
+  }
+  .red-badge {
+    display: inline-block; font-size: 0.78rem; font-family: var(--mono);
+    color: var(--muted);
+  }
+  .red-badge.locked { color: var(--text); font-weight: 700; }
+  .ev { font-family: var(--mono); font-weight: 600; }
+  .rank { color: var(--muted); font-family: var(--mono); }
+  .notes { font-size: 0.85rem; color: var(--muted); }
+  .notes p { margin: 0.4rem 0; }
+  .notes ul { margin: 0.4rem 0; padding-left: 1.2rem; }
+  .notes li { margin: 0.25rem 0; }
+  code { font-family: var(--mono); background: var(--input-bg); border: 1px solid var(--border); border-radius: 4px; padding: 0.05rem 0.3rem; }
+  footer { color: var(--muted); font-size: 0.78rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Harvest Crop Rotation Optimiser</h1>
+  <p class="subtitle">
+    Assumes every other Harvest Atlas passive is already allocated, including the Crop Rotation
+    keystone. Reaching Crop Rotation requires fully allocating one colour's branch (two 10% nodes
+    plus one 25% notable, all three &mdash; a locked-in <strong>45% reduced chance to grow</strong>
+    that colour), so at least one colour is always at 45%. The other two colours can each
+    independently sit at 0%, 10%, 20%, 25%, 35%, or 45% (the 25% notable can be taken alone,
+    without either 10% node). An exact solver plays every possible Grove
+    optimally (crop pairs, wilting, and the tier-upgrade mini-game, reacting correctly to lucky and
+    unlucky outcomes) to find the reduction levels that maximise expected divine value per Grove &mdash;
+    and the same solver is available below as a step-by-step advisor for your actual Grove.
+  </p>
+
+  <div class="panel">
+    <h2>Market rates</h2>
+    <div class="row">
+      <div class="field">
+        <label for="league">League</label>
+        <input id="league" list="leagues" value="Allflame" />
+        <datalist id="leagues">
+          <option value="Allflame">
+          <option value="Hardcore Allflame">
+          <option value="Standard">
+          <option value="Hardcore">
+        </datalist>
+      </div>
+      <button id="fetchBtn" type="button">Fetch live prices</button>
+      <span style="flex:1"></span>
+    </div>
+    <div class="row" style="margin-top:1rem;">
+      <div class="field">
+        <label for="primalPrice"><span class="colour-dot dot-primal"></span>Primal (Blue) &mdash; lifeforce per divine</label>
+        <input id="primalPrice" type="number" min="0" step="1" />
+      </div>
+      <div class="field">
+        <label for="vividPrice"><span class="colour-dot dot-vivid"></span>Vivid (Yellow) &mdash; lifeforce per divine</label>
+        <input id="vividPrice" type="number" min="0" step="1" />
+      </div>
+      <div class="field">
+        <label for="wildPrice"><span class="colour-dot dot-wild"></span>Wild (Purple) &mdash; lifeforce per divine</label>
+        <input id="wildPrice" type="number" min="0" step="1" />
+      </div>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Simulation settings</h2>
+    <div class="row">
+      <div class="field">
+        <label for="packSize">Map pack size</label>
+        <input id="packSize" type="number" min="0" max="400" step="1" value="0" />
+        <span class="hint">% increased pack size. Raises T1&ndash;T3 monster counts (not T4).</span>
+      </div>
+      <div class="field">
+        <label for="trials">Trials per configuration</label>
+        <input id="trials" type="number" min="200" max="20000" step="100" value="4000" />
+        <span class="hint">Higher = less noise, slower to run.</span>
+      </div>
+      <button id="runBtn" type="button">Run simulation</button>
+    </div>
+    <div id="simStatus" class="status"></div>
+    <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Grove advisor &mdash; step-by-step optimal play</h2>
+    <p class="notes">
+      Set up the crop pairs actually in front of you right now (colours only &mdash; every crop starts fresh).
+      The advisor recommends which crop to harvest next. Perform it in-game, then report what actually
+      happened to the other crop in that pair &mdash; the next recommendation adapts instantly to the real
+      outcome, lucky or unlucky, rather than assuming an average.
+    </p>
+    <div id="advisorSetup">
+      <div id="advisorPairsList"></div>
+      <div class="row" style="margin-top:0.9rem;">
+        <button id="addPairBtn" type="button" class="secondary">+ Add pair</button>
+        <button id="removePairBtn" type="button" class="secondary">&minus; Remove pair</button>
+        <span style="flex:1"></span>
+        <button id="startAdvisorBtn" type="button">Start advisor</button>
+      </div>
+    </div>
+    <div id="advisorRun" style="display:none;">
+      <div id="advisorTotals" class="notes" style="margin-bottom:0.75rem;"></div>
+      <div id="advisorState" class="notes"></div>
+      <div id="advisorRecommendation" class="panel" style="margin:1rem 0; background:var(--best-bg); border-color:var(--best-border);"></div>
+      <div class="row">
+        <button id="harvestBtn" type="button">Harvest recommended crop</button>
+        <button id="resetAdvisorBtn" type="button" class="secondary">Reset advisor</button>
+      </div>
+      <div id="wiltPrompt" class="row" style="display:none; margin-top:0.9rem; align-items:center;">
+        <span style="margin-right:0.75rem;">Did the other crop in that pair survive the wilt roll?</span>
+        <button id="wiltSurvivedBtn" type="button">Survived</button>
+        <button id="wiltDiedBtn" type="button" class="secondary">Wilted</button>
+      </div>
+      <div id="confirmPrompt" style="display:none; margin-top:0.9rem;">
+        <p class="notes" style="margin:0 0 0.6rem;">
+          These crops were just triggered. Fields are pre-filled with the <em>expected</em> outcome &mdash;
+          check the actual crop tooltips in-game and correct any that rolled differently before continuing,
+          so the advisor keeps tracking your real Grove instead of the average one.
+        </p>
+        <div id="confirmFields"></div>
+        <div class="row" style="margin-top:0.75rem;">
+          <button id="confirmTiersBtn" type="button">Confirm actual tiers &amp; continue</button>
+        </div>
+      </div>
+      <div id="advisorLog" class="notes" style="margin-top:1.25rem; font-family: var(--mono); font-size:0.8rem;"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>All 91 reduction configurations, ranked by exact expected value per Grove under optimal play</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Primal &Delta;</th>
+            <th>Vivid &Delta;</th>
+            <th>Wild &Delta;</th>
+            <th>Points spent</th>
+            <th>Optimal EV / Grove (divine)</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel notes">
+    <h2>Mechanics modelled</h2>
+    <ul>
+      <li>Reaching Crop Rotation locks one colour to 45% reduced chance to grow (both 10% nodes + the 25% notable). The other two colours are each independently 0/10/20/25/35/45% &mdash; six levels, since the 25% notable can be taken on its own without either 10% node &mdash; renormalised into spawn weights (weight = 1 &minus; reduction).</li>
+      <li>A Grove has 3, 4, or 5 crop pairs (29% / 47% / 24%, matching the "chance to contain an additional Harvest" passive already assumed taken). Each pair's two crops each independently roll a colour from the current weights.</li>
+      <li>Every crop starts as 23 Tier&nbsp;1 seeds. Harvesting any crop gives every seed in every crop of a <em>different</em> colour an independent chance to step up one tier: T1&rarr;T2 25%, T2&rarr;T3 20%, T3&rarr;T4 5% (T16-map rates, per Prohibited Library Discord data).</li>
+      <li>Activating one crop in a pair destroys the other unless it rolls a 10% "chance for the unchosen Crop to not wilt" (Heart of the Grove, assumed taken).</li>
+      <li>Harvest order is chosen by an <strong>exact solver</strong>, not a fixed heuristic: divine value is a linear function of tier counts, and the expected-value tier-upgrade transition is also linear, so a crop's expected value is fully determined by its current tier counts and how many more cross-colour "trigger rounds" it lives through &mdash; order-independent. That collapses the problem to a small expectimax search (memoized on the set of surviving crops and their tiers) that branches only on the one real chance event, the wilt roll, and always picks whichever harvest maximises total expected remaining value. It correctly discovers, for example, that with several pairs of one colour and only one crop of another, harvesting the abundant colour first to fund upgrades and cashing in the scarce one last (once it's absorbed every prior trigger) beats protecting a nominal "target" colour by rote. The ranked table below runs this solver against randomly drawn Grove compositions, starting every crop fresh, and averages the exact optimal value of each. The Grove advisor panel runs the same solver interactively against your actual Grove, one real decision at a time &mdash; and after every trigger it asks you to confirm the actual observed T2&ndash;T4 counts (pre-filled with the expected outcome as a starting guess) rather than silently assuming every upgrade roll lands on average, so its recommendations track your real Grove even after a lucky or unlucky swing.</li>
+      <li>Lifeforce value per seed tier (at 0% pack size): T1 &asymp; 0.145, T2 &asymp; 1.85, T3 = 47, T4 = 235 &mdash; derived from monster-spawn chance &times; drop chance &times; average stack size per tier. Pack size scales T1&ndash;T3 (more monsters per seed); T4 seeds always spawn exactly one boss monster regardless of pack size.</li>
+    </ul>
+    <h2 style="margin-top:1.25rem;">Deliberately not modelled</h2>
+    <ul>
+      <li><strong>Map IIQ and "increased Lifeforce quantity" Atlas passives</strong> &mdash; these scale every tier and colour by the same multiplier, so they don't change which configuration is best, only the absolute divine figure. Left out to keep inputs focused on decisions that matter.</li>
+      <li><strong>Duplicated monsters / duplicated Lifeforce passives</strong> &mdash; roughly flat multipliers on total yield, same reasoning.</li>
+      <li><strong>Non-uniform pair colour assignment</strong> &mdash; each of a pair's two crops is drawn independently; there's no confirmed rule forcing the two members of a pair to differ in colour.</li>
+      <li><strong>"Imbued Harvest" map device craft</strong> &mdash; a per-map choice (not an Atlas passive) that would raise wilt-survival and seed-count further; out of scope for a tree-configuration tool since it's a separate, per-map decision.</li>
+    </ul>
+    <p>Live prices are pulled from poe.ninja's Currency exchange overview (<code>primal-lifeforce</code>, <code>vivid-lifeforce</code>, <code>wild-lifeforce</code>, and <code>divine</code> to convert each into lifeforce-per-divine). A direct browser request is blocked by poe.ninja's CORS policy, so this page tries that first and then falls back to a local proxy endpoint served by <code>serve.py</code>. Run <code>python3 serve.py</code> in this folder and open <code>http://localhost:8420/</code> for reliable fetching &mdash; it fetches server-side with no third party involved. All three price fields are always editable manually regardless.</p>
+    <p>Within each configuration, harvest order is solved exactly (zero noise) &mdash; remaining Monte Carlo noise comes only from which Grove compositions get randomly drawn to average over. Re-run or raise the trial count if two configurations look suspiciously close.</p>
+  </div>
+
+  <footer>Data source: poe.ninja. This tool is unofficial and not affiliated with Grinding Gear Games.</footer>
+</div>
+
+<script>
+(function () {
+  var COLOURS = [
+    { key: 'primal', label: 'Primal', dot: 'dot-primal', ninjaId: 'primal-lifeforce', input: 'primalPrice' },
+    { key: 'vivid',  label: 'Vivid',  dot: 'dot-vivid',  ninjaId: 'vivid-lifeforce',  input: 'vividPrice' },
+    { key: 'wild',   label: 'Wild',   dot: 'dot-wild',   ninjaId: 'wild-lifeforce',   input: 'wildPrice' }
+  ];
+  // Every colour has three dedicated nodes: two 10% "reduced chance" nodes and one 25%
+  // notable, independently takeable, giving six achievable totals: 0 (none), 10 (one 10%
+  // node), 20 (both 10% nodes), 25 (the notable alone), 35 (notable + one 10% node), 45 (all three).
+  var REDUCTION_LEVELS = [0, 10, 20, 25, 35, 45];
+  var NODES_FOR_REDUCTION = { 0: 0, 10: 1, 20: 2, 25: 1, 35: 2, 45: 3 };
+  var PAIR_COUNT_DIST = [{ n: 3, p: 0.29 }, { n: 4, p: 0.47 }, { n: 5, p: 0.24 }];
+  var UPGRADE_CHANCE = { 1: 0.25, 2: 0.20, 3: 0.05 };
+  var WILT_SURVIVE_CHANCE = 0.10;
+  var SEEDS_PER_CROP = 23;
+  var TIER_BASE = { 1: 7.25, 2: 18.5, 3: 47, 4: 235 };
+  var TIER_DROP_CHANCE = { 1: 0.02, 2: 0.10, 3: 1.0, 4: 1.0 };
+
+  var statusEl = document.getElementById('status');
+  var simStatusEl = document.getElementById('simStatus');
+  var progressBar = document.getElementById('progressBar');
+  var fetchBtn = document.getElementById('fetchBtn');
+  var runBtn = document.getElementById('runBtn');
+  var leagueInput = document.getElementById('league');
+  var packSizeInput = document.getElementById('packSize');
+  var trialsInput = document.getElementById('trials');
+  var resultsBody = document.getElementById('resultsBody');
+
+  var simCache = null; // array of { reduction: [rP,rV,rW], target: idx, qty: [primalQty, vividQty, wildQty] }
+  var simCachePrices = null; // prices used when simCache was generated — harvest decisions depend on these
+
+  function setStatus(msg, kind) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  function setSimStatus(msg, kind) {
+    simStatusEl.textContent = msg;
+    simStatusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  // Price inputs are entered as lifeforce-per-divine (e.g. "2800"), matching how players
+  // usually think about lifeforce rates. Internally the solver needs divine value per unit
+  // of lifeforce, so this inverts each input (0/blank -> 0, not Infinity).
+  function lfPerDivineInputs() {
+    var out = {};
+    COLOURS.forEach(function (c) {
+      var v = parseFloat(document.getElementById(c.input).value);
+      out[c.key] = isNaN(v) || v <= 0 ? 0 : v;
+    });
+    return out;
+  }
+  function divinePriceArray() {
+    var lf = lfPerDivineInputs();
+    function perUnit(lfPerDiv) { return lfPerDiv > 0 ? 1 / lfPerDiv : 0; }
+    return [perUnit(lf.primal), perUnit(lf.vivid), perUnit(lf.wild)];
+  }
+
+  function fmt(n, digits) {
+    return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  }
+
+  function lifeforcePerSeedTier(packSize) {
+    var ps = 1 + packSize / 100;
+    return {
+      1: TIER_BASE[1] * TIER_DROP_CHANCE[1] * ps,
+      2: TIER_BASE[2] * TIER_DROP_CHANCE[2] * ps,
+      3: TIER_BASE[3] * TIER_DROP_CHANCE[3] * ps,
+      4: TIER_BASE[4] * TIER_DROP_CHANCE[4] // T4 always exactly one boss monster, no pack size scaling
+    };
+  }
+
+  function cropValue(tiers, lfPerTier) {
+    return tiers[1] * lfPerTier[1] + tiers[2] * lfPerTier[2] + tiers[3] * lfPerTier[3] + tiers[4] * lfPerTier[4];
+  }
+
+  function samplePairCount() {
+    var r = Math.random(), acc = 0;
+    for (var i = 0; i < PAIR_COUNT_DIST.length; i++) {
+      acc += PAIR_COUNT_DIST[i].p;
+      if (r < acc) return PAIR_COUNT_DIST[i].n;
+    }
+    return PAIR_COUNT_DIST[PAIR_COUNT_DIST.length - 1].n;
+  }
+
+  function drawColour(weights) {
+    var sum = weights[0] + weights[1] + weights[2];
+    var r = Math.random() * sum, acc = 0;
+    for (var i = 0; i < 3; i++) {
+      acc += weights[i];
+      if (r < acc) return i;
+    }
+    return 2;
+  }
+
+  // --- Exact expectimax solver -------------------------------------------
+  // Chaos value is a LINEAR function of tier counts, and the expected-value
+  // tier-upgrade transition (T1->T2->T3->T4 at fixed per-seed probabilities)
+  // is also linear (matrix multiplication on the tier vector). So E[value] =
+  // value(E[tiers]) EXACTLY — a crop's expected future value depends only on
+  // its CURRENT tier vector and how many more cross-colour "trigger rounds"
+  // it lives through, regardless of order. Units carry a real tier vector
+  // (not an abstract round count) so the solver can start from whatever the
+  // player actually reports in-game, not just a fresh crop — the only chance
+  // event that needs true branching is the wilt roll.
+  //
+  // units: array of { type:'pair', a:{colour,tiers}, b:{colour,tiers} }
+  //     or { type:'orphan', colour, tiers }; tiers = {1,2,3,4} seed counts.
+
+  function applyExpectedUpgrade(tiers) {
+    var up3 = tiers[3] * UPGRADE_CHANCE[3];
+    var up2 = tiers[2] * UPGRADE_CHANCE[2];
+    var up1 = tiers[1] * UPGRADE_CHANCE[1];
+    return { 1: tiers[1] - up1, 2: tiers[2] - up2 + up1, 3: tiers[3] - up3 + up2, 4: tiers[4] + up3 };
+  }
+
+  function tiersKey(t) {
+    return t[1].toFixed(2) + ',' + t[2].toFixed(2) + ',' + t[3].toFixed(2) + ',' + t[4].toFixed(2);
+  }
+  function canonicalKey(units) {
+    var parts = units.map(function (u) {
+      if (u.type === 'orphan') return 'O' + u.colour + '_' + tiersKey(u.tiers);
+      var a = u.a.colour + '_' + tiersKey(u.a.tiers), b = u.b.colour + '_' + tiersKey(u.b.tiers);
+      return a <= b ? 'P' + a + '|' + b : 'P' + b + '|' + a;
+    });
+    parts.sort();
+    return parts.join(';');
+  }
+
+  function applyTrigger(units, harvestedColour) {
+    return units.map(function (u) {
+      if (u.type === 'orphan') {
+        return u.colour === harvestedColour ? u : { type: 'orphan', colour: u.colour, tiers: applyExpectedUpgrade(u.tiers) };
+      }
+      return {
+        type: 'pair',
+        a: u.a.colour === harvestedColour ? u.a : { colour: u.a.colour, tiers: applyExpectedUpgrade(u.a.tiers) },
+        b: u.b.colour === harvestedColour ? u.b : { colour: u.b.colour, tiers: applyExpectedUpgrade(u.b.tiers) }
+      };
+    });
+  }
+
+  function freshTiers() {
+    return { 1: SEEDS_PER_CROP, 2: 0, 3: 0, 4: 0 };
+  }
+  function freshPair(colourA, colourB) {
+    return { type: 'pair', a: { colour: colourA, tiers: freshTiers() }, b: { colour: colourB, tiers: freshTiers() } };
+  }
+
+  // Builds a solver bound to a specific price/pack-size context (both affect expected divine value).
+  // Returns { solve(units) -> { value, bestAction } }. bestAction carries the acted-on crop's
+  // own {colour, tiers} so callers don't need to re-derive it from unitIndex/member.
+  function makeSolver(priceArr, lfPerTier) {
+    function divineValue(colour, tiers) {
+      return cropValue(tiers, lfPerTier) * priceArr[colour];
+    }
+
+    var memo = new Map();
+    function solve(units) {
+      if (units.length === 0) return { value: 0, bestAction: null };
+      var key = canonicalKey(units);
+      var cached = memo.get(key);
+      if (cached) return cached;
+
+      var best = -Infinity, bestAction = null;
+      for (var i = 0; i < units.length; i++) {
+        var u = units[i];
+        var rest = units.slice(0, i).concat(units.slice(i + 1));
+        if (u.type === 'orphan') {
+          var immediate = divineValue(u.colour, u.tiers);
+          var total = immediate + solve(applyTrigger(rest, u.colour)).value;
+          if (total > best) { best = total; bestAction = { unitIndex: i, member: 'orphan', colour: u.colour, tiers: u.tiers }; }
+        } else {
+          ['a', 'b'].forEach(function (member) {
+            var chosen = u[member], other = member === 'a' ? u.b : u.a;
+            var immediate2 = divineValue(chosen.colour, chosen.tiers);
+            var triggeredRest = applyTrigger(rest, chosen.colour);
+            var otherTiers = other.colour === chosen.colour ? other.tiers : applyExpectedUpgrade(other.tiers);
+            var vSurvive = solve(triggeredRest.concat([{ type: 'orphan', colour: other.colour, tiers: otherTiers }])).value;
+            var vDie = solve(triggeredRest).value;
+            var future = WILT_SURVIVE_CHANCE * vSurvive + (1 - WILT_SURVIVE_CHANCE) * vDie;
+            var total2 = immediate2 + future;
+            if (total2 > best) { best = total2; bestAction = { unitIndex: i, member: member, colour: chosen.colour, tiers: chosen.tiers }; }
+          });
+        }
+      }
+      var result = { value: best, bestAction: bestAction };
+      memo.set(key, result);
+      return result;
+    }
+
+    return { solve: solve, divineValue: divineValue, memo: memo };
+  }
+
+  // Draws one random Grove composition and returns its exact optimal expected divine value,
+  // playing every decision optimally (including reacting to wilt outcomes) via the solver above.
+  function solveRandomGrove(weights, solver) {
+    var numPairs = samplePairCount();
+    var units = [];
+    for (var i = 0; i < numPairs; i++) {
+      units.push(freshPair(drawColour(weights), drawColour(weights)));
+    }
+    return solver.solve(units).value;
+  }
+
+  function buildConfigurations() {
+    var configs = [];
+    REDUCTION_LEVELS.forEach(function (rP) {
+      REDUCTION_LEVELS.forEach(function (rV) {
+        REDUCTION_LEVELS.forEach(function (rW) {
+          if (rP !== 45 && rV !== 45 && rW !== 45) return; // at least one colour must be at 45%
+          configs.push({ reduction: [rP, rV, rW] });
+        });
+      });
+    });
+    return configs;
+  }
+
+  async function runSimulation() {
+    var packSize = parseFloat(packSizeInput.value) || 0;
+    var trials = Math.max(200, Math.min(20000, parseInt(trialsInput.value, 10) || 1500));
+    var lfPerTier = lifeforcePerSeedTier(packSize);
+    var configs = buildConfigurations();
+    var priceArr = divinePriceArray();
+    // One solver (and its memoization cache) for the whole run: decisions only depend on
+    // price/pack-size, both fixed for the duration of a run, so sub-states discovered while
+    // solving one config's random Groves are often reusable when solving the next.
+    var solver = makeSolver(priceArr, lfPerTier);
+
+    runBtn.disabled = true;
+    fetchBtn.disabled = true;
+    progressBar.style.width = '0%';
+    setSimStatus('Solving ' + configs.length + ' configurations × ' + trials + ' Grove draws each (optimal play, exact solver)...');
+
+    var results = [];
+    var batchSize = 3;
+    for (var i = 0; i < configs.length; i += batchSize) {
+      var batchEnd = Math.min(i + batchSize, configs.length);
+      for (var j = i; j < batchEnd; j++) {
+        var cfg = configs[j];
+        var weights = [1 - cfg.reduction[0] / 100, 1 - cfg.reduction[1] / 100, 1 - cfg.reduction[2] / 100];
+        var total = 0;
+        for (var t = 0; t < trials; t++) {
+          total += solveRandomGrove(weights, solver);
+        }
+        results.push({ reduction: cfg.reduction, ev: total / trials });
+      }
+      progressBar.style.width = Math.round((batchEnd / configs.length) * 100) + '%';
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(function (resolve) { setTimeout(resolve, 0); });
+    }
+
+    simCache = results;
+    simCachePrices = priceArr;
+    runBtn.disabled = false;
+    fetchBtn.disabled = false;
+    setSimStatus('Solved ' + configs.length + ' configurations × ' + trials + ' Grove draws at ' + new Date().toLocaleTimeString() + ' (' + solver.memo.size + ' cached states).', 'ok');
+    renderTable();
+  }
+
+  function renderTable() {
+    resultsBody.innerHTML = '';
+    if (!simCache) return;
+    var priceArr = divinePriceArray();
+
+    var stale = simCachePrices && (
+      priceArr[0] !== simCachePrices[0] || priceArr[1] !== simCachePrices[1] || priceArr[2] !== simCachePrices[2]
+    );
+    if (stale) {
+      setSimStatus('Prices changed since the last run — harvest decisions were optimised for the old prices. Re-run for fully accurate rankings.', 'error');
+    }
+
+    var rows = simCache.slice().sort(function (a, b) { return b.ev - a.ev; });
+
+    rows.forEach(function (r, idx) {
+      var tr = document.createElement('tr');
+      if (idx === 0) tr.className = 'best';
+
+      var rankTd = document.createElement('td');
+      rankTd.className = 'rank';
+      rankTd.textContent = String(idx + 1);
+      tr.appendChild(rankTd);
+
+      var totalNodes = 0;
+      for (var i = 0; i < 3; i++) {
+        var td = document.createElement('td');
+        var span = document.createElement('span');
+        span.className = 'red-badge' + (r.reduction[i] === 45 ? ' locked' : '');
+        span.textContent = '-' + r.reduction[i] + '%';
+        td.appendChild(span);
+        tr.appendChild(td);
+        totalNodes += NODES_FOR_REDUCTION[r.reduction[i]];
+      }
+
+      var nodesTd = document.createElement('td');
+      nodesTd.className = 'rank';
+      nodesTd.textContent = String(totalNodes);
+      tr.appendChild(nodesTd);
+
+      var evTd = document.createElement('td');
+      evTd.className = 'ev';
+      evTd.textContent = fmt(r.ev, 4);
+      tr.appendChild(evTd);
+
+      resultsBody.appendChild(tr);
+    });
+  }
+
+  async function tryFetchJson(url) {
+    var res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+
+  async function fetchLivePrices() {
+    if (location.protocol === 'file:') {
+      // Both remaining fetch paths (direct, local proxy) are blocked or unavailable from a
+      // file:// origin, so don't bother trying — it would just burn time on requests that
+      // can never succeed. Serve over http(s) (e.g. `python3 serve.py`) for live fetching.
+      setStatus('Opened as a local file — live price fetching needs an http(s) origin, so it\'s skipped here. Enter prices manually, or run `python3 serve.py` in this folder and open http://localhost:8420/ instead.', 'error');
+      return;
+    }
+
+    var league = leagueInput.value.trim() || 'Allflame';
+    var target = 'https://poe.ninja/poe1/api/economy/exchange/current/overview?league=' +
+      encodeURIComponent(league) + '&type=Currency';
+
+    var attempts = [];
+    attempts.push({ label: 'local proxy (serve.py)', url: '/api/prices?league=' + encodeURIComponent(league) });
+    attempts.push({ label: 'direct', url: target });
+
+    fetchBtn.disabled = true;
+    setStatus('Fetching current prices for league "' + league + '"...');
+
+    var lastErr = null;
+    for (var i = 0; i < attempts.length; i++) {
+      try {
+        var data = await tryFetchJson(attempts[i].url);
+        if (!data || !Array.isArray(data.lines)) throw new Error('Unexpected response shape');
+
+        var byId = {};
+        data.lines.forEach(function (l) { byId[l.id] = l; });
+
+        var divineLine = byId['divine'];
+        if (!divineLine || typeof divineLine.primaryValue !== 'number') {
+          throw new Error('Divine Orb rate not found in response');
+        }
+        var chaosPerDivine = divineLine.primaryValue;
+
+        var missing = [];
+        COLOURS.forEach(function (c) {
+          var line = byId[c.ninjaId];
+          if (line && typeof line.primaryValue === 'number' && line.primaryValue > 0) {
+            // API gives chaos per unit lifeforce; convert to lifeforce per divine for display.
+            document.getElementById(c.input).value = Math.round(chaosPerDivine / line.primaryValue);
+          } else {
+            missing.push(c.label);
+          }
+        });
+
+        fetchBtn.disabled = false;
+        if (missing.length) {
+          setStatus('Fetched via ' + attempts[i].label + ', but missing data for: ' + missing.join(', ') + '. Enter those manually.', 'error');
+        } else {
+          setStatus('Fetched live prices via ' + attempts[i].label + ' at ' + new Date().toLocaleTimeString() + ' (Divine Orb = ' + fmt(chaosPerDivine, 1) + ' chaos).', 'ok');
+        }
+        renderTable();
+        return;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+
+    fetchBtn.disabled = false;
+    setStatus(
+      'Could not fetch live prices (' + (lastErr ? lastErr.message : 'unknown error') + '). ' +
+      'A direct browser request is blocked by CORS — for reliable fetching, run `python3 serve.py` ' +
+      'in this folder and open http://localhost:8420/ instead. Prices below are editable manually either way.',
+      'error'
+    );
+  }
+
+  // --- Grove advisor ------------------------------------------------------
+  var advisorPairsListEl = document.getElementById('advisorPairsList');
+  var advisorSetupEl = document.getElementById('advisorSetup');
+  var advisorRunEl = document.getElementById('advisorRun');
+  var advisorTotalsEl = document.getElementById('advisorTotals');
+  var advisorStateEl = document.getElementById('advisorState');
+  var advisorRecommendationEl = document.getElementById('advisorRecommendation');
+  var advisorLogEl = document.getElementById('advisorLog');
+  var wiltPromptEl = document.getElementById('wiltPrompt');
+  var confirmPromptEl = document.getElementById('confirmPrompt');
+  var confirmFieldsEl = document.getElementById('confirmFields');
+  var harvestBtn = document.getElementById('harvestBtn');
+
+  var advisorPairColours = [[1, 2], [1, 2], [1, 0], [0, 2]]; // default 4 pairs, sensible mixed starting point
+  var advisorSolver = null;
+  var advisorUnits = null;
+  var advisorBanked = 0;
+  var advisorLogLines = [];
+  var advisorPending = null; // set while waiting for a real wilt-outcome report
+
+  function renderAdvisorPairsList() {
+    advisorPairsListEl.innerHTML = '';
+    advisorPairColours.forEach(function (pair, idx) {
+      var row = document.createElement('div');
+      row.className = 'row';
+      row.style.marginTop = idx === 0 ? '0' : '0.5rem';
+      var label = document.createElement('span');
+      label.style.minWidth = '4.5rem';
+      label.style.color = 'var(--muted)';
+      label.style.fontSize = '0.85rem';
+      label.textContent = 'Pair ' + (idx + 1) + ':';
+      row.appendChild(label);
+      ['a', 'b'].forEach(function (slot, slotIdx) {
+        var sel = document.createElement('select');
+        COLOURS.forEach(function (c, ci) {
+          var opt = document.createElement('option');
+          opt.value = String(ci);
+          opt.textContent = c.label;
+          if (ci === pair[slotIdx]) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.addEventListener('change', function () {
+          advisorPairColours[idx][slotIdx] = parseInt(sel.value, 10);
+        });
+        row.appendChild(sel);
+      });
+      advisorPairsListEl.appendChild(row);
+    });
+  }
+
+  function addAdvisorPair() {
+    if (advisorPairColours.length >= 8) return;
+    advisorPairColours.push([1, 2]);
+    renderAdvisorPairsList();
+  }
+  function removeAdvisorPair() {
+    if (advisorPairColours.length <= 1) return;
+    advisorPairColours.pop();
+    renderAdvisorPairsList();
+  }
+
+  function fmtTier(n) {
+    return Math.abs(n - Math.round(n)) < 1e-6 ? String(Math.round(n)) : n.toFixed(2);
+  }
+  function tierText(tiers) {
+    return 'T1:' + fmtTier(tiers[1]) + ' T2:' + fmtTier(tiers[2]) + ' T3:' + fmtTier(tiers[3]) + ' T4:' + fmtTier(tiers[4]);
+  }
+  function cropLabel(colour, tiers) {
+    return COLOURS[colour].label + ' — ' + tierText(tiers);
+  }
+
+  // advisorConfirm holds { restUnits (untriggered), harvestedColour } while the player
+  // is asked to confirm the real observed tiers for every crop that was just triggered.
+  var advisorConfirm = null;
+
+  function startAdvisor() {
+    var priceArr = divinePriceArray();
+    var packSize = parseFloat(packSizeInput.value) || 0;
+    var lfPerTier = lifeforcePerSeedTier(packSize);
+    advisorSolver = makeSolver(priceArr, lfPerTier);
+    advisorUnits = advisorPairColours.map(function (p) { return freshPair(p[0], p[1]); });
+    advisorBanked = 0;
+    advisorLogLines = [];
+    advisorPending = null;
+    advisorConfirm = null;
+    advisorSetupEl.style.display = 'none';
+    advisorRunEl.style.display = 'block';
+    renderAdvisorRun();
+  }
+
+  function resetAdvisor() {
+    advisorSolver = null;
+    advisorUnits = null;
+    advisorPending = null;
+    advisorConfirm = null;
+    advisorSetupEl.style.display = 'block';
+    advisorRunEl.style.display = 'none';
+    wiltPromptEl.style.display = 'none';
+    confirmPromptEl.style.display = 'none';
+    harvestBtn.style.display = '';
+  }
+
+  function renderAdvisorRun() {
+    var remaining = advisorUnits.length ? advisorSolver.solve(advisorUnits).value : 0;
+    advisorTotalsEl.innerHTML =
+      '<strong>Banked so far:</strong> ' + fmt(advisorBanked, 4) + ' divine &nbsp;&middot;&nbsp; ' +
+      '<strong>Expected remaining (optimal play):</strong> ' + fmt(remaining, 4) + ' divine &nbsp;&middot;&nbsp; ' +
+      '<strong>Total expected:</strong> ' + fmt(advisorBanked + remaining, 4) + ' divine';
+
+    var stateLines = advisorUnits.map(function (u) {
+      if (u.type === 'orphan') return '&bull; ' + cropLabel(u.colour, u.tiers) + ' — single crop, no wilt risk';
+      return '&bull; Pair — [' + cropLabel(u.a.colour, u.a.tiers) + '] | [' + cropLabel(u.b.colour, u.b.tiers) + ']';
+    });
+    advisorStateEl.innerHTML = advisorUnits.length
+      ? '<p><strong>Current Grove state (confirmed real tiers):</strong></p><p>' + stateLines.join('<br>') + '</p>'
+      : '';
+
+    if (advisorUnits.length === 0 && !advisorConfirm) {
+      advisorRecommendationEl.innerHTML = '<strong>Done.</strong> All crops harvested.';
+      harvestBtn.style.display = 'none';
+      wiltPromptEl.style.display = 'none';
+      confirmPromptEl.style.display = 'none';
+      renderAdvisorLog();
+      return;
+    }
+
+    if (advisorConfirm) {
+      advisorRecommendationEl.innerHTML = '<strong>Confirm what actually happened</strong> before the next recommendation.';
+      harvestBtn.style.display = 'none';
+      wiltPromptEl.style.display = 'none';
+      renderConfirmForm();
+    } else if (advisorPending) {
+      advisorRecommendationEl.innerHTML = '<strong>Waiting for outcome:</strong> report whether the ' +
+        COLOURS[advisorPending.otherColour].label + ' partner survived the wilt roll before continuing.';
+      harvestBtn.style.display = 'none';
+      wiltPromptEl.style.display = 'flex';
+      confirmPromptEl.style.display = 'none';
+    } else {
+      var action = advisorSolver.solve(advisorUnits).bestAction;
+      var immediate = advisorSolver.divineValue(action.colour, action.tiers);
+      advisorRecommendationEl.innerHTML = '<strong>Recommended next harvest:</strong> ' +
+        cropLabel(action.colour, action.tiers) +
+        (action.member === 'orphan' ? ' (single crop)' : ' (from Pair ' + (action.unitIndex + 1) + ', slot ' + action.member.toUpperCase() + ')') +
+        '<br>Banks ' + fmt(immediate, 4) + ' divine now' +
+        (action.member === 'orphan' ? '.' : ', and gives the other crop in that pair a ' + Math.round(WILT_SURVIVE_CHANCE * 100) + '% chance to survive the wilt.');
+      harvestBtn.style.display = '';
+      wiltPromptEl.style.display = 'none';
+      confirmPromptEl.style.display = 'none';
+    }
+    renderAdvisorLog();
+  }
+
+  function renderAdvisorLog() {
+    advisorLogEl.innerHTML = advisorLogLines.map(function (l) { return l; }).join('<br>');
+  }
+
+  // Every crop of a different colour than the one just harvested received a trigger.
+  // List each such crop (from restUnits, still holding its PRE-trigger real tiers) so
+  // the confirm form can default to the expected post-trigger outcome per crop.
+  function triggeredSlots(restUnits, harvestedColour) {
+    var slots = [];
+    restUnits.forEach(function (u, idx) {
+      if (u.type === 'orphan') {
+        if (u.colour !== harvestedColour) slots.push({ unitIndex: idx, member: 'orphan', colour: u.colour, preTiers: u.tiers });
+      } else {
+        if (u.a.colour !== harvestedColour) slots.push({ unitIndex: idx, member: 'a', colour: u.a.colour, preTiers: u.a.tiers });
+        if (u.b.colour !== harvestedColour) slots.push({ unitIndex: idx, member: 'b', colour: u.b.colour, preTiers: u.b.tiers });
+      }
+    });
+    return slots;
+  }
+
+  function renderConfirmForm() {
+    var slots = triggeredSlots(advisorConfirm.restUnits, advisorConfirm.harvestedColour);
+    confirmFieldsEl.innerHTML = '';
+    if (slots.length === 0) {
+      // Nothing of a different colour was alive to trigger — nothing to confirm, auto-advance.
+      finishConfirm([]);
+      return;
+    }
+    slots.forEach(function (slot, si) {
+      var expected = applyExpectedUpgrade(slot.preTiers);
+      var row = document.createElement('div');
+      row.className = 'row';
+      row.style.marginTop = si === 0 ? '0' : '0.6rem';
+      row.style.alignItems = 'flex-end';
+
+      var label = document.createElement('span');
+      label.style.minWidth = '11rem';
+      label.style.fontSize = '0.85rem';
+      label.textContent = (slot.member === 'orphan' ? 'Single crop' : 'Pair ' + (slot.unitIndex + 1) + ' slot ' + slot.member.toUpperCase()) +
+        ' (' + COLOURS[slot.colour].label + '):';
+      row.appendChild(label);
+
+      var inputs = {};
+      [2, 3, 4].forEach(function (tier) {
+        var field = document.createElement('div');
+        field.className = 'field';
+        field.style.minWidth = '4.5rem';
+        var lab = document.createElement('label');
+        lab.textContent = 'T' + tier;
+        var inp = document.createElement('input');
+        inp.type = 'number'; inp.min = '0'; inp.step = '1';
+        inp.value = String(Math.round(expected[tier]));
+        inp.style.width = '4.5rem';
+        inp.dataset.slot = si; inp.dataset.tier = tier;
+        inputs[tier] = inp;
+        field.appendChild(lab); field.appendChild(inp);
+        row.appendChild(field);
+      });
+
+      var t1Note = document.createElement('span');
+      t1Note.style.fontSize = '0.8rem';
+      t1Note.style.color = 'var(--muted)';
+      t1Note.style.marginLeft = '0.5rem';
+      function updateT1Note() {
+        var used = [2, 3, 4].reduce(function (sum, t) { return sum + (parseInt(inputs[t].value, 10) || 0); }, 0);
+        var t1 = SEEDS_PER_CROP - used;
+        t1Note.textContent = 'T1: ' + t1 + (t1 < 0 ? ' (too many seeds — reduce the above)' : '');
+        t1Note.style.color = t1 < 0 ? '#c0503a' : 'var(--muted)';
+      }
+      [2, 3, 4].forEach(function (tier) { inputs[tier].addEventListener('input', updateT1Note); });
+      updateT1Note();
+      row.appendChild(t1Note);
+
+      confirmFieldsEl.appendChild(row);
+    });
+    confirmPromptEl.style.display = 'block';
+  }
+
+  function confirmTiers() {
+    var slots = triggeredSlots(advisorConfirm.restUnits, advisorConfirm.harvestedColour);
+    var reported = {};
+    slots.forEach(function (slot, si) {
+      var t2 = Math.max(0, parseInt(confirmFieldsEl.querySelector('input[data-slot="' + si + '"][data-tier="2"]').value, 10) || 0);
+      var t3 = Math.max(0, parseInt(confirmFieldsEl.querySelector('input[data-slot="' + si + '"][data-tier="3"]').value, 10) || 0);
+      var t4 = Math.max(0, parseInt(confirmFieldsEl.querySelector('input[data-slot="' + si + '"][data-tier="4"]').value, 10) || 0);
+      var t1 = Math.max(0, SEEDS_PER_CROP - t2 - t3 - t4);
+      reported[slot.unitIndex + ':' + slot.member] = { 1: t1, 2: t2, 3: t3, 4: t4 };
+    });
+    finishConfirm(reported, true);
+  }
+
+  function finishConfirm(reportedOrSlots, isReportedMap) {
+    var reported = isReportedMap ? reportedOrSlots : {};
+    var restUnits = advisorConfirm.restUnits, harvestedColour = advisorConfirm.harvestedColour;
+    advisorUnits = restUnits.map(function (u, idx) {
+      if (u.type === 'orphan') {
+        if (u.colour === harvestedColour) return u;
+        var key = idx + ':orphan';
+        return { type: 'orphan', colour: u.colour, tiers: reported[key] || applyExpectedUpgrade(u.tiers) };
+      }
+      var aKey = idx + ':a', bKey = idx + ':b';
+      return {
+        type: 'pair',
+        a: u.a.colour === harvestedColour ? u.a : { colour: u.a.colour, tiers: reported[aKey] || applyExpectedUpgrade(u.a.tiers) },
+        b: u.b.colour === harvestedColour ? u.b : { colour: u.b.colour, tiers: reported[bKey] || applyExpectedUpgrade(u.b.tiers) }
+      };
+    });
+    advisorConfirm = null;
+    if (Object.keys(reported).length) advisorLogLines.push('&nbsp;&nbsp;&rarr; confirmed actual tiers for triggered crops.');
+    renderAdvisorRun();
+  }
+
+  function harvestRecommended() {
+    var result = advisorSolver.solve(advisorUnits);
+    var action = result.bestAction;
+    var i = action.unitIndex;
+    var u = advisorUnits[i];
+    var rest = advisorUnits.slice(0, i).concat(advisorUnits.slice(i + 1));
+    var immediate = advisorSolver.divineValue(action.colour, action.tiers);
+    advisorBanked += immediate;
+
+    if (action.member === 'orphan') {
+      advisorLogLines.push('Harvested ' + COLOURS[action.colour].label + ' (single crop) — banked ' + fmt(immediate, 4) + ' divine.');
+      advisorConfirm = { restUnits: rest, harvestedColour: action.colour };
+      renderAdvisorRun();
+    } else {
+      var chosen = u[action.member];
+      var other = action.member === 'a' ? u.b : u.a;
+      advisorPending = { rest: rest, harvestedColour: chosen.colour, otherColour: other.colour, otherTiers: other.tiers };
+      advisorLogLines.push('Harvested ' + COLOURS[action.colour].label + ' from Pair ' + (i + 1) + ' — banked ' + fmt(immediate, 4) + ' divine.');
+      renderAdvisorRun();
+    }
+  }
+
+  function reportWiltOutcome(survived) {
+    var p = advisorPending;
+    var restUnits = p.rest;
+    if (survived) {
+      restUnits = restUnits.concat([{ type: 'orphan', colour: p.otherColour, tiers: p.otherTiers }]);
+      advisorLogLines.push('&nbsp;&nbsp;&rarr; the ' + COLOURS[p.otherColour].label + ' partner survived.');
+    } else {
+      advisorLogLines.push('&nbsp;&nbsp;&rarr; the ' + COLOURS[p.otherColour].label + ' partner wilted.');
+    }
+    advisorConfirm = { restUnits: restUnits, harvestedColour: p.harvestedColour };
+    advisorPending = null;
+    renderAdvisorRun();
+  }
+
+  renderAdvisorPairsList();
+  document.getElementById('addPairBtn').addEventListener('click', addAdvisorPair);
+  document.getElementById('removePairBtn').addEventListener('click', removeAdvisorPair);
+  document.getElementById('startAdvisorBtn').addEventListener('click', startAdvisor);
+  document.getElementById('resetAdvisorBtn').addEventListener('click', resetAdvisor);
+  harvestBtn.addEventListener('click', harvestRecommended);
+  document.getElementById('wiltSurvivedBtn').addEventListener('click', function () { reportWiltOutcome(true); });
+  document.getElementById('wiltDiedBtn').addEventListener('click', function () { reportWiltOutcome(false); });
+  document.getElementById('confirmTiersBtn').addEventListener('click', confirmTiers);
+
+  fetchBtn.addEventListener('click', function () { fetchLivePrices(); });
+  runBtn.addEventListener('click', function () { runSimulation(); });
+  COLOURS.forEach(function (c) {
+    document.getElementById(c.input).addEventListener('input', renderTable);
+  });
+
+  // Sensible starting values (lifeforce per divine) so the page isn't empty before the first fetch/run.
+  document.getElementById('primalPrice').value = 5200;
+  document.getElementById('vividPrice').value = 2800;
+  document.getElementById('wildPrice').value = 10500;
+
+  // Simulation decisions depend on prices, so fetch (or fail and fall back to the
+  // defaults above) before running the first simulation — otherwise a fetch that
+  // completes after the simulation starts leaves the page permanently "stale".
+  (async function start() {
+    await fetchLivePrices();
+    await runSimulation();
+  })();
+})();
+</script>
+</body>
+</html>
