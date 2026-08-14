@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvSGFydmVzdC9WaXZpZExpZmVmb3JjZSIsInNjYWxlIjoxfV0/a355b8a5a2/VividLifeforce.png" />
 <title>Harvest Crop Rotation Optimiser</title>
 <style>
   :root {
@@ -73,6 +74,8 @@
     font-family: var(--mono);
   }
   input[type="number"] { width: 9rem; }
+  input[type="checkbox"] { width: auto; padding: 0; }
+  .checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
   button {
     background: var(--accent);
     color: var(--accent-text);
@@ -189,6 +192,12 @@
       <div class="field">
         <label for="multMapIiq">Map IIQ %</label>
         <input id="multMapIiq" type="number" min="0" step="1" value="0" />
+      </div>
+      <div class="field">
+        <label class="checkbox-label" for="scarabDoubling">
+          <input id="scarabDoubling" type="checkbox" />
+          Harvest Scarab of Doubling
+        </label>
       </div>
     </div>
   </div>
@@ -332,10 +341,12 @@
   // so they're applied at render time rather than fed into the solver/simulation.
   var MULT_IDS = ['multIncreasedLifeforce', 'multLifeforceDupe', 'multMonsterDupe', 'multMapIiq'];
   function yieldMultiplier() {
-    return MULT_IDS.reduce(function (acc, id) {
+    var mult = MULT_IDS.reduce(function (acc, id) {
       var v = parseFloat(document.getElementById(id).value);
       return acc * (1 + (isNaN(v) ? 0 : v) / 100);
     }, 1);
+    if (document.getElementById('scarabDoubling').checked) mult *= 2;
+    return mult;
   }
 
   function fmt(n, digits) {
@@ -471,7 +482,45 @@
       return result;
     }
 
-    return { solve: solve, divineValue: divineValue, memo: memo };
+    // Same enumeration as solve() above, but returns EVERY candidate action's exact value
+    // (not just the winner) so a caller can detect near-ties the plain solve()/bestAction
+    // API would silently hide behind an arbitrary iteration-order tie-break. Cheap to call —
+    // every sub-value it needs is already memoized by solve() itself.
+    function rankActions(units) {
+      var candidates = [];
+      for (var i = 0; i < units.length; i++) {
+        var u = units[i];
+        var rest = units.slice(0, i).concat(units.slice(i + 1));
+        if (u.type === 'orphan') {
+          var immediate = divineValue(u.colour, u.tiers);
+          var triggeredRest0 = applyTrigger(rest, u.colour);
+          var total = immediate + solve(triggeredRest0).value;
+          // dedupKey fully describes the resulting situation (what's left, no partner to
+          // risk) — two actions sharing it are truly interchangeable, not just coincidentally
+          // equal in value.
+          candidates.push({ unitIndex: i, member: 'orphan', colour: u.colour, tiers: u.tiers, value: total, dedupKey: canonicalKey(triggeredRest0) });
+        } else {
+          ['a', 'b'].forEach(function (member) {
+            var chosen = u[member], other = member === 'a' ? u.b : u.a;
+            var immediate2 = divineValue(chosen.colour, chosen.tiers);
+            var triggeredRest = applyTrigger(rest, chosen.colour);
+            var otherTiers = other.colour === chosen.colour ? other.tiers : applyExpectedUpgrade(other.tiers);
+            var vSurvive = solve(triggeredRest.concat([{ type: 'orphan', colour: other.colour, tiers: otherTiers }])).value;
+            var vDie = solve(triggeredRest).value;
+            var total2 = immediate2 + WILT_SURVIVE_CHANCE * vSurvive + (1 - WILT_SURVIVE_CHANCE) * vDie;
+            // dedupKey covers both what's left AND who's put at wilt risk (and their tiers) —
+            // harvesting Wild(A) vs Wild(B) has the same *value* by coincidence here, but a
+            // different partner is exposed to the wilt roll, so they get different keys.
+            var dedupKey = canonicalKey(triggeredRest) + '::' + other.colour + '_' + tiersKey(otherTiers);
+            candidates.push({ unitIndex: i, member: member, colour: chosen.colour, tiers: chosen.tiers, value: total2, dedupKey: dedupKey });
+          });
+        }
+      }
+      candidates.sort(function (a, b) { return b.value - a.value; });
+      return candidates;
+    }
+
+    return { solve: solve, rankActions: rankActions, divineValue: divineValue, memo: memo };
   }
 
   // Draws one random Grove composition and returns its exact optimal expected divine value,
@@ -655,6 +704,7 @@
   var advisorSolver = null;
   var advisorUnits = null;
   var advisorBanked = 0;
+  var advisorInitialExpected = 0; // the Grove's total EV at the moment "Start advisor" was clicked, for comparison
   var advisorLogLines = [];
   var advisorPending = null; // set while waiting for a real wilt-outcome report
 
@@ -812,6 +862,111 @@
     };
   }
 
+  // --- Near-tie tiebreak: real-outcome rollouts ---------------------------
+  // The solver's own value figure treats every future tier-upgrade as landing exactly on
+  // its expectation (that's what makes the DP fast/exact for RANKING purposes), but that
+  // shortcut is a lower bound on the true value of reacting to real rolls — max() over
+  // actions makes the value function convex in the state, so by Jensen's inequality real
+  // adaptive play is worth >= the certainty-equivalent figure, with equality only when the
+  // best action can't change across outcomes. That gap is usually the same size for every
+  // candidate action and cancels out of the comparison — except when two candidates are
+  // tied (or nearly so) under the certainty-equivalent value, where the gap can be the
+  // deciding factor. Rather than guess a heuristic for those cases, settle them by actually
+  // sampling real random outcomes for just the tied candidates and seeing which wins.
+  function sampleRealUpgrade(tiers) {
+    var out = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    [1, 2, 3].forEach(function (t) {
+      var p = UPGRADE_CHANCE[t], ups = 0;
+      for (var s = 0; s < tiers[t]; s++) { if (Math.random() < p) ups++; }
+      out[t] += tiers[t] - ups;
+      out[t + 1] += ups;
+    });
+    out[4] += tiers[4];
+    return out;
+  }
+  function sampleRealTrigger(units, harvestedColour) {
+    return units.map(function (u) {
+      if (u.type === 'orphan') {
+        return u.colour === harvestedColour ? u : { type: 'orphan', colour: u.colour, tiers: sampleRealUpgrade(u.tiers) };
+      }
+      return {
+        type: 'pair',
+        a: u.a.colour === harvestedColour ? u.a : { colour: u.a.colour, tiers: sampleRealUpgrade(u.a.tiers) },
+        b: u.b.colour === harvestedColour ? u.b : { colour: u.b.colour, tiers: sampleRealUpgrade(u.b.tiers) }
+      };
+    });
+  }
+  // Plays out one full real (randomly-sampled) Grove from `units`, using the ordinary
+  // certainty-equivalent solver for every decision along the way — this is only ever used
+  // to compare a handful of tied opening candidates, never for the headline EV figures.
+  function rolloutRealPlay(units, solver) {
+    var u = units, total = 0;
+    while (u.length > 0) {
+      var action = solver.solve(u).bestAction;
+      var i = action.unitIndex, unit = u[i];
+      var rest = u.slice(0, i).concat(u.slice(i + 1));
+      total += solver.divineValue(action.colour, action.tiers);
+      if (action.member === 'orphan') {
+        u = sampleRealTrigger(rest, action.colour);
+      } else {
+        var other = action.member === 'a' ? unit.b : unit.a;
+        var triggeredRest = sampleRealTrigger(rest, action.colour);
+        u = Math.random() < WILT_SURVIVE_CHANCE
+          ? triggeredRest.concat([{ type: 'orphan', colour: other.colour, tiers: other.tiers }])
+          : triggeredRest;
+      }
+    }
+    return total;
+  }
+
+  var TIEBREAK_REL_EPSILON = 0.01; // candidates within 1% of the top certainty-equivalent value count as "tied"
+  var TIEBREAK_ROLLOUTS = 3000;
+
+  // Picks the action to recommend: the plain solver's top pick, unless it's tied (within
+  // TIEBREAK_REL_EPSILON) with other distinguishable candidates, in which case real rollouts
+  // break the tie. Returns the same shape as a rankActions() entry: {unitIndex, member,
+  // colour, tiers, value}.
+  function pickRecommendedAction(units, solver) {
+    var ranked = solver.rankActions(units);
+    if (ranked.length === 0) return null;
+    var top = ranked[0].value;
+    var epsilon = Math.max(1e-9, Math.abs(top) * TIEBREAK_REL_EPSILON);
+    var seenState = {};
+    var tied = [];
+    ranked.forEach(function (c) {
+      if (top - c.value > epsilon) return;
+      if (seenState[c.dedupKey]) return; // truly identical resulting situation already represented — nothing real to distinguish
+      seenState[c.dedupKey] = true;
+      tied.push(c);
+    });
+    if (tied.length <= 1) return ranked[0];
+
+    var best = null, bestAvg = -Infinity;
+    tied.forEach(function (candidate) {
+      var i = candidate.unitIndex, unit = units[i];
+      var member = candidate.member;
+      var rest = units.slice(0, i).concat(units.slice(i + 1));
+      var immediate = solver.divineValue(candidate.colour, candidate.tiers);
+      var sum = 0;
+      for (var t = 0; t < TIEBREAK_ROLLOUTS; t++) {
+        var triggeredRest = sampleRealTrigger(rest, candidate.colour);
+        var nextUnits;
+        if (member === 'orphan') {
+          nextUnits = triggeredRest;
+        } else {
+          var other = member === 'a' ? unit.b : unit.a;
+          nextUnits = Math.random() < WILT_SURVIVE_CHANCE
+            ? triggeredRest.concat([{ type: 'orphan', colour: other.colour, tiers: other.tiers }])
+            : triggeredRest;
+        }
+        sum += immediate + rolloutRealPlay(nextUnits, solver);
+      }
+      var avg = sum / TIEBREAK_ROLLOUTS;
+      if (avg > bestAvg) { bestAvg = avg; best = candidate; }
+    });
+    return best;
+  }
+
   // advisorConfirm holds { restUnits (untriggered), harvestedColour } while the player
   // is asked to confirm the real observed tiers for every crop that was just triggered.
   var advisorConfirm = null;
@@ -827,6 +982,7 @@
     advisorSolver = makeSolver(priceArr, lfPerTier);
     advisorUnits = advisorSlots.map(cloneAdvisorUnit);
     advisorBanked = 0;
+    advisorInitialExpected = advisorUnits.length ? advisorSolver.solve(advisorUnits).value : 0;
     advisorLogLines = [];
     advisorPending = null;
     advisorConfirm = null;
@@ -1046,7 +1202,7 @@
       advisorUnitsListEl.appendChild(done);
       return;
     }
-    var recommendedAction = advisorSolver.solve(advisorUnits).bestAction;
+    var recommendedAction = pickRecommendedAction(advisorUnits, advisorSolver);
     advisorUnits.forEach(function (u, idx) {
       if (u.type === 'orphan') {
         appendUnitCard([buildRunCropCard(idx, 'orphan', u.colour, u.tiers, recommendedAction, false, 'Single crop — no wilt risk')]);
@@ -1062,6 +1218,7 @@
   function renderAdvisorRun() {
     var remaining = advisorUnits.length ? advisorSolver.solve(advisorUnits).value : 0;
     advisorTotalsEl.innerHTML =
+      '<strong>Original expected value:</strong> ' + fmt(advisorInitialExpected, 4) + ' divine &nbsp;&middot;&nbsp; ' +
       '<strong>Banked so far:</strong> ' + fmt(advisorBanked, 4) + ' divine &nbsp;&middot;&nbsp; ' +
       '<strong>Expected remaining (optimal play):</strong> ' + fmt(remaining, 4) + ' divine &nbsp;&middot;&nbsp; ' +
       '<strong>Total expected:</strong> ' + fmt(advisorBanked + remaining, 4) + ' divine';
@@ -1176,6 +1333,7 @@
   MULT_IDS.forEach(function (id) {
     document.getElementById(id).addEventListener('input', renderTable);
   });
+  document.getElementById('scarabDoubling').addEventListener('change', renderTable);
 
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
