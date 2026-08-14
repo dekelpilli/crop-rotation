@@ -192,28 +192,22 @@
       <h2>Yield multipliers</h2>
       <div class="row">
         <div class="field">
-          <label for="multIncreasedLifeforce">Increased lifeforce</label>
+          <label for="multIncreasedLifeforce">Increased lifeforce %</label>
           <input id="multIncreasedLifeforce" type="number" min="0" step="1" value="18" />
         </div>
         <div class="field">
-          <label for="multLifeforceDupe">Lifeforce duplicate chance</label>
+          <label for="multLifeforceDupe">Lifeforce duplicate %</label>
           <input id="multLifeforceDupe" type="number" min="0" step="1" value="10" />
         </div>
         <div class="field">
-          <label for="multMonsterDupe">Monster duplicate chance</label>
+          <label for="multMonsterDupe">Monster duplicate %</label>
           <input id="multMonsterDupe" type="number" min="0" step="1" value="6" />
         </div>
         <div class="field">
-          <label for="multMapIiq">Map IIQ</label>
+          <label for="multMapIiq">Map IIQ %</label>
           <input id="multMapIiq" type="number" min="0" step="1" value="0" />
         </div>
       </div>
-      <p class="notes" style="margin-top:0.6rem;">
-        All %, multiplied straight onto the displayed profit figures below (e.g. 18% + 10% + 6% + 0% &rarr;
-        &times;1.18 &times;1.10 &times;1.06 &times;1.00). These don't change which Atlas allocation is
-        optimal, only the divine amounts shown, so they're applied after the simulation rather than fed
-        into it.
-      </p>
     </div>
 
     <div class="panel">
@@ -555,7 +549,7 @@
     simCachePrices = priceArr;
     runBtn.disabled = false;
     reloadPricesBtn.disabled = false;
-    setSimStatus('Solved ' + configs.length + ' configurations × ' + trials + ' Grove draws at ' + new Date().toLocaleTimeString() + ' (' + solver.memo.size + ' cached states).', 'ok');
+    setSimStatus('', '');
     renderTable();
   }
 
@@ -637,13 +631,6 @@
   }
 
   async function loadCachedPrices() {
-    if (location.protocol === 'file:') {
-      // Fetching a local prices.json from a file:// origin is blocked the same way a
-      // cross-origin request would be, so don't bother trying — serve over http(s) instead.
-      setStatus('Opened as a local file — cached price loading needs an http(s) origin, so it\'s skipped here. Enter prices manually, or run `python3 scripts/update_prices.py` then `python3 serve.py` in this folder and open http://localhost:8420/ instead.', 'error');
-      return;
-    }
-
     reloadPricesBtn.disabled = true;
     setStatus('Loading cached prices...');
     try {
