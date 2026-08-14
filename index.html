@@ -137,6 +137,62 @@
 <div class="wrap">
   <h1>Harvest Crop Rotation Optimiser</h1>
 
+  <div class="panel">
+    <h2>Market rates</h2>
+    <div class="row">
+      <div class="field">
+        <label for="league">League</label>
+        <select id="league"></select>
+      </div>
+      <button id="reloadPricesBtn" type="button" class="secondary">Reload cached prices</button>
+      <span style="flex:1"></span>
+    </div>
+    <div class="row" style="margin-top:1rem;">
+      <div class="field">
+        <label for="primalPrice"><span class="colour-dot dot-primal"></span>Primal (Blue) &mdash; lifeforce per divine</label>
+        <input id="primalPrice" type="number" min="0" step="1" />
+      </div>
+      <div class="field">
+        <label for="vividPrice"><span class="colour-dot dot-vivid"></span>Vivid (Yellow) &mdash; lifeforce per divine</label>
+        <input id="vividPrice" type="number" min="0" step="1" />
+      </div>
+      <div class="field">
+        <label for="wildPrice"><span class="colour-dot dot-wild"></span>Wild (Purple) &mdash; lifeforce per divine</label>
+        <input id="wildPrice" type="number" min="0" step="1" />
+      </div>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Yield multipliers</h2>
+    <div class="row">
+      <div class="field">
+        <label for="packSize">Map pack size %</label>
+        <input id="packSize" type="number" min="0" max="400" step="1" value="0" />
+        <span class="hint">% increased pack size. Raises T1&ndash;T3 monster counts (not T4).</span>
+      </div>
+    </div>
+    <div class="row" style="margin-top:1rem;">
+      <div class="field">
+        <label for="multIncreasedLifeforce">Increased lifeforce %</label>
+        <input id="multIncreasedLifeforce" type="number" min="0" step="1" value="18" />
+      </div>
+      <div class="field">
+        <label for="multLifeforceDupe">Lifeforce duplicate %</label>
+        <input id="multLifeforceDupe" type="number" min="0" step="1" value="10" />
+      </div>
+      <div class="field">
+        <label for="multMonsterDupe">Monster duplicate %</label>
+        <input id="multMonsterDupe" type="number" min="0" step="1" value="6" />
+      </div>
+      <div class="field">
+        <label for="multMapIiq">Map IIQ %</label>
+        <input id="multMapIiq" type="number" min="0" step="1" value="0" />
+      </div>
+    </div>
+  </div>
+
   <div class="tabs" role="tablist">
     <button class="tab-btn active" data-tab="optimiser" type="button" role="tab">Profit &amp; Atlas tree</button>
     <button class="tab-btn" data-tab="advisor" type="button" role="tab">Grove advisor</button>
@@ -144,40 +200,8 @@
 
   <div id="tab-optimiser" class="tab-panel">
     <div class="panel">
-      <h2>Market rates</h2>
-      <div class="row">
-        <div class="field">
-          <label for="league">League</label>
-          <select id="league"></select>
-        </div>
-        <button id="reloadPricesBtn" type="button" class="secondary">Reload cached prices</button>
-        <span style="flex:1"></span>
-      </div>
-      <div class="row" style="margin-top:1rem;">
-        <div class="field">
-          <label for="primalPrice"><span class="colour-dot dot-primal"></span>Primal (Blue) &mdash; lifeforce per divine</label>
-          <input id="primalPrice" type="number" min="0" step="1" />
-        </div>
-        <div class="field">
-          <label for="vividPrice"><span class="colour-dot dot-vivid"></span>Vivid (Yellow) &mdash; lifeforce per divine</label>
-          <input id="vividPrice" type="number" min="0" step="1" />
-        </div>
-        <div class="field">
-          <label for="wildPrice"><span class="colour-dot dot-wild"></span>Wild (Purple) &mdash; lifeforce per divine</label>
-          <input id="wildPrice" type="number" min="0" step="1" />
-        </div>
-      </div>
-      <div id="status" class="status"></div>
-    </div>
-
-    <div class="panel">
       <h2>Simulation settings</h2>
       <div class="row">
-        <div class="field">
-          <label for="packSize">Map pack size</label>
-          <input id="packSize" type="number" min="0" max="400" step="1" value="0" />
-          <span class="hint">% increased pack size. Raises T1&ndash;T3 monster counts (not T4).</span>
-        </div>
         <div class="field">
           <label for="trials">Trials per configuration</label>
           <input id="trials" type="number" min="200" max="20000" step="100" value="4000" />
@@ -187,28 +211,6 @@
       </div>
       <div id="simStatus" class="status"></div>
       <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
-    </div>
-
-    <div class="panel">
-      <h2>Yield multipliers</h2>
-      <div class="row">
-        <div class="field">
-          <label for="multIncreasedLifeforce">Increased lifeforce %</label>
-          <input id="multIncreasedLifeforce" type="number" min="0" step="1" value="18" />
-        </div>
-        <div class="field">
-          <label for="multLifeforceDupe">Lifeforce duplicate %</label>
-          <input id="multLifeforceDupe" type="number" min="0" step="1" value="10" />
-        </div>
-        <div class="field">
-          <label for="multMonsterDupe">Monster duplicate %</label>
-          <input id="multMonsterDupe" type="number" min="0" step="1" value="6" />
-        </div>
-        <div class="field">
-          <label for="multMapIiq">Map IIQ %</label>
-          <input id="multMapIiq" type="number" min="0" step="1" value="0" />
-        </div>
-      </div>
     </div>
 
     <div class="panel">
@@ -235,43 +237,26 @@
     <div class="panel">
       <h2>Grove advisor &mdash; step-by-step optimal play</h2>
       <p class="notes">
-        Set up the crop pairs actually in front of you right now (colours only &mdash; every crop starts fresh).
-        The advisor recommends which crop to harvest next. Perform it in-game, then report what actually
-        happened to the other crop in that pair &mdash; the next recommendation adapts instantly to the real
-        outcome, lucky or unlucky, rather than assuming an average.
+        Lay out the crop pairs (and any lone survivors) actually in front of you right now &mdash; pick each
+        crop's colour and, if you're picking this up partway through a harvest, its current tier counts too.
+        Once started, harvest <em>any</em> crop with its own button below; the solver's top pick is highlighted,
+        but you're free to deviate. Report what actually happened after each harvest and the recommendation
+        adapts instantly to the real outcome, lucky or unlucky, rather than assuming an average.
       </p>
       <div id="advisorSetup">
-        <div id="advisorPairsList"></div>
+        <div id="advisorSlotsList"></div>
         <div class="row" style="margin-top:0.9rem;">
           <button id="addPairBtn" type="button" class="secondary">+ Add pair</button>
-          <button id="removePairBtn" type="button" class="secondary">&minus; Remove pair</button>
+          <button id="addSingleBtn" type="button" class="secondary">+ Add single crop</button>
           <span style="flex:1"></span>
           <button id="startAdvisorBtn" type="button">Start advisor</button>
         </div>
       </div>
       <div id="advisorRun" style="display:none;">
         <div id="advisorTotals" class="notes" style="margin-bottom:0.75rem;"></div>
-        <div id="advisorState" class="notes"></div>
-        <div id="advisorRecommendation" class="panel" style="margin:1rem 0; background:var(--best-bg); border-color:var(--best-border);"></div>
-        <div class="row">
-          <button id="harvestBtn" type="button">Harvest recommended crop</button>
+        <div id="advisorUnitsList"></div>
+        <div class="row" style="margin-top:0.5rem;">
           <button id="resetAdvisorBtn" type="button" class="secondary">Reset advisor</button>
-        </div>
-        <div id="wiltPrompt" class="row" style="display:none; margin-top:0.9rem; align-items:center;">
-          <span style="margin-right:0.75rem;">Did the other crop in that pair survive the wilt roll?</span>
-          <button id="wiltSurvivedBtn" type="button">Survived</button>
-          <button id="wiltDiedBtn" type="button" class="secondary">Wilted</button>
-        </div>
-        <div id="confirmPrompt" style="display:none; margin-top:0.9rem;">
-          <p class="notes" style="margin:0 0 0.6rem;">
-            These crops were just triggered. Fields are pre-filled with the <em>expected</em> outcome &mdash;
-            check the actual crop tooltips in-game and correct any that rolled differently before continuing,
-            so the advisor keeps tracking your real Grove instead of the average one.
-          </p>
-          <div id="confirmFields"></div>
-          <div class="row" style="margin-top:0.75rem;">
-            <button id="confirmTiersBtn" type="button">Confirm actual tiers &amp; continue</button>
-          </div>
         </div>
         <div id="advisorLog" class="notes" style="margin-top:1.25rem; font-family: var(--mono); font-size:0.8rem;"></div>
       </div>
@@ -288,6 +273,7 @@
     { key: 'vivid',  label: 'Vivid',  dot: 'dot-vivid',  input: 'vividPrice' },
     { key: 'wild',   label: 'Wild',   dot: 'dot-wild',   input: 'wildPrice' }
   ];
+  var COLOUR_HEX = ['#4f8fd6', '#d6c34f', '#9a5fc9']; // matches .dot-primal/.dot-vivid/.dot-wild
   // Every colour has three dedicated nodes: two 10% "reduced chance" nodes and one 25%
   // notable, independently takeable, giving six achievable totals: 0 (none), 10 (one 10%
   // node), 20 (both 10% nodes), 25 (the notable alone), 35 (notable + one 10% node), 45 (all three).
@@ -649,74 +635,181 @@
   }
 
   // --- Grove advisor ------------------------------------------------------
-  var advisorPairsListEl = document.getElementById('advisorPairsList');
+  var advisorSlotsListEl = document.getElementById('advisorSlotsList');
   var advisorSetupEl = document.getElementById('advisorSetup');
   var advisorRunEl = document.getElementById('advisorRun');
   var advisorTotalsEl = document.getElementById('advisorTotals');
-  var advisorStateEl = document.getElementById('advisorState');
-  var advisorRecommendationEl = document.getElementById('advisorRecommendation');
+  var advisorUnitsListEl = document.getElementById('advisorUnitsList');
   var advisorLogEl = document.getElementById('advisorLog');
-  var wiltPromptEl = document.getElementById('wiltPrompt');
-  var confirmPromptEl = document.getElementById('confirmPrompt');
-  var confirmFieldsEl = document.getElementById('confirmFields');
-  var harvestBtn = document.getElementById('harvestBtn');
 
-  var advisorPairColours = [[1, 2], [1, 2], [1, 0], [0, 2]]; // default 4 pairs, sensible mixed starting point
+  // advisorSlots mirrors the run-time unit shape ({type:'pair', a:{colour,tiers}, b:{...}}
+  // or {type:'orphan', colour, tiers}) so a slot can be handed straight to the solver on
+  // start — including tier counts the player already reports mid-harvest, not just fresh 23s.
+  function freshSetupCrop(colour) { return { colour: colour, tiers: freshTiers() }; }
+  var advisorSlots = [
+    { type: 'pair', a: freshSetupCrop(1), b: freshSetupCrop(2) },
+    { type: 'pair', a: freshSetupCrop(1), b: freshSetupCrop(2) },
+    { type: 'pair', a: freshSetupCrop(1), b: freshSetupCrop(0) },
+    { type: 'pair', a: freshSetupCrop(0), b: freshSetupCrop(2) }
+  ];
   var advisorSolver = null;
   var advisorUnits = null;
   var advisorBanked = 0;
   var advisorLogLines = [];
   var advisorPending = null; // set while waiting for a real wilt-outcome report
 
-  function renderAdvisorPairsList() {
-    advisorPairsListEl.innerHTML = '';
-    advisorPairColours.forEach(function (pair, idx) {
-      var row = document.createElement('div');
-      row.className = 'row';
-      row.style.marginTop = idx === 0 ? '0' : '0.5rem';
-      var label = document.createElement('span');
-      label.style.minWidth = '4.5rem';
-      label.style.color = 'var(--muted)';
-      label.style.fontSize = '0.85rem';
-      label.textContent = 'Pair ' + (idx + 1) + ':';
-      row.appendChild(label);
-      ['a', 'b'].forEach(function (slot, slotIdx) {
-        var sel = document.createElement('select');
-        COLOURS.forEach(function (c, ci) {
-          var opt = document.createElement('option');
-          opt.value = String(ci);
-          opt.textContent = c.label;
-          if (ci === pair[slotIdx]) opt.selected = true;
-          sel.appendChild(opt);
-        });
-        sel.addEventListener('change', function () {
-          advisorPairColours[idx][slotIdx] = parseInt(sel.value, 10);
-        });
-        row.appendChild(sel);
-      });
-      advisorPairsListEl.appendChild(row);
+  // Builds a colour-select + T2/T3/T4 tier inputs (with a computed T1 remainder) bound
+  // directly to `crop` ({colour,tiers}), mutating it in place as the player edits it.
+  function buildCropEditor(crop) {
+    var box = document.createElement('div');
+    box.style.cssText = 'flex:1; min-width:220px; border-left:4px solid; border-radius:6px; padding:0.6rem 0.75rem; background:var(--input-bg);';
+    function applyBorderColour() { box.style.borderLeftColor = COLOUR_HEX[crop.colour]; }
+
+    var selField = document.createElement('div');
+    selField.className = 'field';
+    var selLab = document.createElement('label');
+    selLab.textContent = 'Colour';
+    var sel = document.createElement('select');
+    COLOURS.forEach(function (c, ci) {
+      var opt = document.createElement('option');
+      opt.value = String(ci);
+      opt.textContent = c.label;
+      if (ci === crop.colour) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', function () {
+      crop.colour = parseInt(sel.value, 10);
+      applyBorderColour();
+    });
+    selField.appendChild(selLab);
+    selField.appendChild(sel);
+    box.appendChild(selField);
+
+    var tiersRow = document.createElement('div');
+    tiersRow.className = 'row';
+    tiersRow.style.cssText = 'gap:0.5rem; margin-top:0.5rem;';
+    var inputs = {};
+    [2, 3, 4].forEach(function (tier) {
+      var field = document.createElement('div');
+      field.className = 'field';
+      field.style.minWidth = '4rem';
+      var lab = document.createElement('label');
+      lab.textContent = 'T' + tier;
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.step = '1';
+      inp.value = String(Math.round(crop.tiers[tier]));
+      inp.style.width = '4rem';
+      inputs[tier] = inp;
+      field.appendChild(lab);
+      field.appendChild(inp);
+      tiersRow.appendChild(field);
+    });
+    var t1Note = document.createElement('span');
+    t1Note.style.cssText = 'font-size:0.78rem; color:var(--muted); align-self:center;';
+    function refreshTiers() {
+      var t2 = Math.max(0, parseInt(inputs[2].value, 10) || 0);
+      var t3 = Math.max(0, parseInt(inputs[3].value, 10) || 0);
+      var t4 = Math.max(0, parseInt(inputs[4].value, 10) || 0);
+      var t1 = SEEDS_PER_CROP - t2 - t3 - t4;
+      t1Note.textContent = 'T1: ' + Math.max(0, t1) + (t1 < 0 ? ' (too many seeds)' : '');
+      t1Note.style.color = t1 < 0 ? '#c0503a' : 'var(--muted)';
+      crop.tiers = { 1: Math.max(0, t1), 2: t2, 3: t3, 4: t4 };
+    }
+    [2, 3, 4].forEach(function (tier) { inputs[tier].addEventListener('input', refreshTiers); });
+    tiersRow.appendChild(t1Note);
+    box.appendChild(tiersRow);
+
+    applyBorderColour();
+    return box;
+  }
+
+  function renderAdvisorSlotsList() {
+    advisorSlotsListEl.innerHTML = '';
+    advisorSlots.forEach(function (slot, idx) {
+      var card = document.createElement('div');
+      card.className = 'panel';
+      card.style.cssText = 'margin-bottom:0.75rem; padding:1rem 1.1rem;';
+
+      var header = document.createElement('div');
+      header.className = 'row';
+      header.style.cssText = 'justify-content:space-between; align-items:center; margin-bottom:0.6rem;';
+      var title = document.createElement('span');
+      title.style.cssText = 'font-weight:600; font-size:0.85rem; color:var(--muted);';
+      title.textContent = (slot.type === 'pair' ? 'Pair ' : 'Single crop ') + (idx + 1);
+      header.appendChild(title);
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'secondary';
+      removeBtn.style.cssText = 'padding:0.3rem 0.6rem; font-size:0.78rem;';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', function () { removeAdvisorSlot(idx); });
+      header.appendChild(removeBtn);
+      card.appendChild(header);
+
+      var editorsRow = document.createElement('div');
+      editorsRow.className = 'row';
+      editorsRow.style.gap = '1rem';
+      if (slot.type === 'pair') {
+        editorsRow.appendChild(buildCropEditor(slot.a));
+        editorsRow.appendChild(buildCropEditor(slot.b));
+      } else {
+        editorsRow.appendChild(buildCropEditor(slot));
+      }
+      card.appendChild(editorsRow);
+
+      advisorSlotsListEl.appendChild(card);
     });
   }
 
-  function addAdvisorPair() {
-    if (advisorPairColours.length >= 8) return;
-    advisorPairColours.push([1, 2]);
-    renderAdvisorPairsList();
+  function addAdvisorPairSlot() {
+    if (advisorSlots.length >= 8) return;
+    advisorSlots.push({ type: 'pair', a: freshSetupCrop(1), b: freshSetupCrop(2) });
+    renderAdvisorSlotsList();
   }
-  function removeAdvisorPair() {
-    if (advisorPairColours.length <= 1) return;
-    advisorPairColours.pop();
-    renderAdvisorPairsList();
+  function addAdvisorSingleSlot() {
+    if (advisorSlots.length >= 8) return;
+    advisorSlots.push({ type: 'orphan', colour: 1, tiers: freshTiers() });
+    renderAdvisorSlotsList();
+  }
+  function removeAdvisorSlot(idx) {
+    if (advisorSlots.length <= 1) return;
+    advisorSlots.splice(idx, 1);
+    renderAdvisorSlotsList();
   }
 
-  function fmtTier(n) {
-    return Math.abs(n - Math.round(n)) < 1e-6 ? String(Math.round(n)) : n.toFixed(2);
+  // Read-only tier display in the same labelled-box layout as the editable tier inputs
+  // (setup/confirm forms), just disabled — so a fresh, untouched crop's "T1:23 T2:0 T3:0
+  // T4:0" reads as an aligned grid of boxes instead of a run-on string.
+  function buildTierDisplay(tiers) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.style.gap = '0.5rem';
+    [1, 2, 3, 4].forEach(function (tier) {
+      var field = document.createElement('div');
+      field.className = 'field';
+      field.style.minWidth = '4rem';
+      var lab = document.createElement('label');
+      lab.textContent = 'T' + tier;
+      var inp = document.createElement('input');
+      inp.type = 'number';
+      inp.value = String(Math.round(tiers[tier]));
+      inp.disabled = true;
+      inp.style.width = '4rem';
+      field.appendChild(lab);
+      field.appendChild(inp);
+      row.appendChild(field);
+    });
+    return row;
   }
-  function tierText(tiers) {
-    return 'T1:' + fmtTier(tiers[1]) + ' T2:' + fmtTier(tiers[2]) + ' T3:' + fmtTier(tiers[3]) + ' T4:' + fmtTier(tiers[4]);
-  }
-  function cropLabel(colour, tiers) {
-    return COLOURS[colour].label + ' — ' + tierText(tiers);
+
+  function cloneTiers(t) { return { 1: t[1], 2: t[2], 3: t[3], 4: t[4] }; }
+  function cloneAdvisorUnit(u) {
+    if (u.type === 'orphan') return { type: 'orphan', colour: u.colour, tiers: cloneTiers(u.tiers) };
+    return {
+      type: 'pair',
+      a: { colour: u.a.colour, tiers: cloneTiers(u.a.tiers) },
+      b: { colour: u.b.colour, tiers: cloneTiers(u.b.tiers) }
+    };
   }
 
   // advisorConfirm holds { restUnits (untriggered), harvestedColour } while the player
@@ -724,11 +817,15 @@
   var advisorConfirm = null;
 
   function startAdvisor() {
-    var priceArr = divinePriceArray();
+    // A uniform multiplier across every colour doesn't change which crop is best to
+    // harvest (same reasoning as the results table), so it's applied straight onto the
+    // solver's prices — every value/recommendation it produces already reflects it.
+    var mult = yieldMultiplier();
+    var priceArr = divinePriceArray().map(function (p) { return p * mult; });
     var packSize = parseFloat(packSizeInput.value) || 0;
     var lfPerTier = lifeforcePerSeedTier(packSize);
     advisorSolver = makeSolver(priceArr, lfPerTier);
-    advisorUnits = advisorPairColours.map(function (p) { return freshPair(p[0], p[1]); });
+    advisorUnits = advisorSlots.map(cloneAdvisorUnit);
     advisorBanked = 0;
     advisorLogLines = [];
     advisorPending = null;
@@ -745,9 +842,221 @@
     advisorConfirm = null;
     advisorSetupEl.style.display = 'block';
     advisorRunEl.style.display = 'none';
-    wiltPromptEl.style.display = 'none';
-    confirmPromptEl.style.display = 'none';
-    harvestBtn.style.display = '';
+  }
+
+  function appendUnitCard(children) {
+    var card = document.createElement('div');
+    card.className = 'panel';
+    card.style.cssText = 'margin-bottom:0.75rem; padding:0.85rem 1rem;';
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.style.gap = '1rem';
+    children.forEach(function (c) { row.appendChild(c); });
+    card.appendChild(row);
+    advisorUnitsListEl.appendChild(card);
+  }
+
+  // Builds one crop's card within the run view: colour + current tiers + a harvest button.
+  // The button is styled/labelled distinctly when it's the solver's top recommendation,
+  // but every crop's button stays clickable so the player can deviate.
+  function buildRunCropCard(unitIndex, member, colour, tiers, recommendedAction, blocked, label, hideButton) {
+    var isRecommended = recommendedAction && recommendedAction.unitIndex === unitIndex && recommendedAction.member === member;
+    var box = document.createElement('div');
+    box.style.cssText = 'flex:1; min-width:200px; border-left:4px solid ' + COLOUR_HEX[colour] + '; border-radius:6px; padding:0.6rem 0.75rem;' +
+      (isRecommended ? ' background:var(--best-bg);' : '');
+
+    var top = document.createElement('div');
+    top.style.cssText = 'font-size:0.78rem; color:var(--muted); margin-bottom:0.3rem;';
+    top.textContent = label;
+    box.appendChild(top);
+
+    var name = document.createElement('div');
+    name.style.marginBottom = '0.4rem';
+    name.innerHTML = '<span class="colour-dot ' + COLOURS[colour].dot + '"></span>' + COLOURS[colour].label;
+    box.appendChild(name);
+
+    var tiersDisplay = buildTierDisplay(tiers);
+    tiersDisplay.style.marginBottom = hideButton ? '0' : '0.6rem';
+    box.appendChild(tiersDisplay);
+
+    if (!hideButton) {
+      var immediate = advisorSolver.divineValue(colour, tiers);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      if (!isRecommended) btn.className = 'secondary';
+      btn.textContent = (isRecommended ? '★ Recommended — ' : '') + 'Harvest (banks ' + fmt(immediate, 4) + ')';
+      btn.disabled = blocked;
+      btn.addEventListener('click', function () { harvestCrop(unitIndex, member); });
+      box.appendChild(btn);
+    }
+
+    return box;
+  }
+
+  // Builds a crop card in "just triggered — confirm actual tiers" mode: editable T2/T3/T4
+  // inputs (pre-filled with the expected outcome) right where that crop's harvest button
+  // would normally be, instead of a separate list of fields elsewhere on the page.
+  function buildConfirmCropCard(unitIndex, member, colour, preTiers, label) {
+    var expected = applyExpectedUpgrade(preTiers);
+    var box = document.createElement('div');
+    box.style.cssText = 'flex:1; min-width:220px; border-left:4px solid ' + COLOUR_HEX[colour] + '; border-radius:6px; padding:0.6rem 0.75rem; background:var(--best-bg);';
+
+    var top = document.createElement('div');
+    top.style.cssText = 'font-size:0.78rem; color:var(--muted); margin-bottom:0.3rem;';
+    top.textContent = label + ' — just triggered';
+    box.appendChild(top);
+
+    var name = document.createElement('div');
+    name.style.marginBottom = '0.4rem';
+    name.innerHTML = '<span class="colour-dot ' + COLOURS[colour].dot + '"></span>' + COLOURS[colour].label + ' — confirm actual tiers:';
+    box.appendChild(name);
+
+    var tiersRow = document.createElement('div');
+    tiersRow.className = 'row';
+    tiersRow.style.gap = '0.5rem';
+    var inputs = {};
+    [2, 3, 4].forEach(function (tier) {
+      var field = document.createElement('div');
+      field.className = 'field';
+      field.style.minWidth = '4rem';
+      var lab = document.createElement('label');
+      lab.textContent = 'T' + tier;
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.step = '1';
+      inp.value = String(Math.round(expected[tier]));
+      inp.style.width = '4rem';
+      inp.dataset.unit = unitIndex; inp.dataset.member = member; inp.dataset.tier = tier;
+      inputs[tier] = inp;
+      field.appendChild(lab);
+      field.appendChild(inp);
+      tiersRow.appendChild(field);
+    });
+    var t1Note = document.createElement('span');
+    t1Note.style.cssText = 'font-size:0.78rem; color:var(--muted); align-self:center;';
+    function updateNote() {
+      var used = [2, 3, 4].reduce(function (sum, t) { return sum + (parseInt(inputs[t].value, 10) || 0); }, 0);
+      var t1 = SEEDS_PER_CROP - used;
+      t1Note.textContent = 'T1: ' + Math.max(0, t1) + (t1 < 0 ? ' (too many seeds)' : '');
+      t1Note.style.color = t1 < 0 ? '#c0503a' : 'var(--muted)';
+    }
+    [2, 3, 4].forEach(function (tier) { inputs[tier].addEventListener('input', updateNote); });
+    updateNote();
+    tiersRow.appendChild(t1Note);
+    box.appendChild(tiersRow);
+
+    return box;
+  }
+
+  // Builds the "awaiting wilt outcome" card for a pair's other crop — its fate (and thus
+  // its place among the other units) isn't decided yet, so it gets its own standalone card
+  // with the Survived/Wilted buttons right on it instead of a separate prompt bar.
+  function buildPendingWiltCard(p) {
+    var box = document.createElement('div');
+    box.style.cssText = 'flex:1; min-width:220px; border-left:4px solid ' + COLOUR_HEX[p.otherColour] + '; border-radius:6px; padding:0.6rem 0.75rem; background:var(--best-bg);';
+
+    var top = document.createElement('div');
+    top.style.cssText = 'font-size:0.78rem; color:var(--muted); margin-bottom:0.3rem;';
+    top.textContent = 'Awaiting wilt outcome';
+    box.appendChild(top);
+
+    var name = document.createElement('div');
+    name.style.marginBottom = '0.4rem';
+    name.innerHTML = '<span class="colour-dot ' + COLOURS[p.otherColour].dot + '"></span>' + COLOURS[p.otherColour].label + ' — did it survive the wilt roll?';
+    box.appendChild(name);
+
+    var tiersDisplay = buildTierDisplay(p.otherTiers);
+    tiersDisplay.style.marginBottom = '0.6rem';
+    box.appendChild(tiersDisplay);
+
+    var btnRow = document.createElement('div');
+    btnRow.className = 'row';
+    btnRow.style.gap = '0.5rem';
+    var survivedBtn = document.createElement('button');
+    survivedBtn.type = 'button';
+    survivedBtn.textContent = 'Survived';
+    survivedBtn.addEventListener('click', function () { reportWiltOutcome(true); });
+    var diedBtn = document.createElement('button');
+    diedBtn.type = 'button';
+    diedBtn.className = 'secondary';
+    diedBtn.textContent = 'Wilted';
+    diedBtn.addEventListener('click', function () { reportWiltOutcome(false); });
+    btnRow.appendChild(survivedBtn);
+    btnRow.appendChild(diedBtn);
+    box.appendChild(btnRow);
+
+    return box;
+  }
+
+  function renderAdvisorUnitsList() {
+    advisorUnitsListEl.innerHTML = '';
+
+    if (advisorConfirm) {
+      var confirmSlots = triggeredSlots(advisorConfirm.restUnits, advisorConfirm.harvestedColour);
+      if (confirmSlots.length === 0) { finishConfirm([]); return; }
+      var confirmByKey = {};
+      confirmSlots.forEach(function (s) { confirmByKey[s.unitIndex + ':' + s.member] = true; });
+
+      advisorConfirm.restUnits.forEach(function (u, idx) {
+        if (u.type === 'orphan') {
+          var key = idx + ':orphan';
+          appendUnitCard([confirmByKey[key]
+            ? buildConfirmCropCard(idx, 'orphan', u.colour, u.tiers, 'Single crop')
+            : buildRunCropCard(idx, 'orphan', u.colour, u.tiers, null, true, 'Single crop — no wilt risk', true)]);
+        } else {
+          appendUnitCard(['a', 'b'].map(function (member) {
+            var crop = u[member];
+            var mKey = idx + ':' + member;
+            var label = 'Pair ' + (idx + 1) + ' — slot ' + member.toUpperCase();
+            return confirmByKey[mKey]
+              ? buildConfirmCropCard(idx, member, crop.colour, crop.tiers, label)
+              : buildRunCropCard(idx, member, crop.colour, crop.tiers, null, true, label, true);
+          }));
+        }
+      });
+
+      var confirmBtn = document.createElement('button');
+      confirmBtn.type = 'button';
+      confirmBtn.textContent = 'Confirm actual tiers & continue';
+      confirmBtn.style.marginTop = '0.25rem';
+      confirmBtn.addEventListener('click', confirmTiersFromCards);
+      advisorUnitsListEl.appendChild(confirmBtn);
+      return;
+    }
+
+    if (advisorPending) {
+      var p = advisorPending;
+      p.rest.forEach(function (u, idx) {
+        if (u.type === 'orphan') {
+          appendUnitCard([buildRunCropCard(idx, 'orphan', u.colour, u.tiers, null, true, 'Single crop — no wilt risk')]);
+        } else {
+          appendUnitCard([
+            buildRunCropCard(idx, 'a', u.a.colour, u.a.tiers, null, true, 'Pair ' + (idx + 1) + ' — slot A'),
+            buildRunCropCard(idx, 'b', u.b.colour, u.b.tiers, null, true, 'Pair ' + (idx + 1) + ' — slot B')
+          ]);
+        }
+      });
+      appendUnitCard([buildPendingWiltCard(p)]);
+      return;
+    }
+
+    if (!advisorUnits.length) {
+      var done = document.createElement('p');
+      done.className = 'notes';
+      done.innerHTML = '<strong>Done.</strong> All crops harvested.';
+      advisorUnitsListEl.appendChild(done);
+      return;
+    }
+    var recommendedAction = advisorSolver.solve(advisorUnits).bestAction;
+    advisorUnits.forEach(function (u, idx) {
+      if (u.type === 'orphan') {
+        appendUnitCard([buildRunCropCard(idx, 'orphan', u.colour, u.tiers, recommendedAction, false, 'Single crop — no wilt risk')]);
+      } else {
+        appendUnitCard([
+          buildRunCropCard(idx, 'a', u.a.colour, u.a.tiers, recommendedAction, false, 'Pair ' + (idx + 1) + ' — slot A'),
+          buildRunCropCard(idx, 'b', u.b.colour, u.b.tiers, recommendedAction, false, 'Pair ' + (idx + 1) + ' — slot B')
+        ]);
+      }
+    });
   }
 
   function renderAdvisorRun() {
@@ -756,47 +1065,7 @@
       '<strong>Banked so far:</strong> ' + fmt(advisorBanked, 4) + ' divine &nbsp;&middot;&nbsp; ' +
       '<strong>Expected remaining (optimal play):</strong> ' + fmt(remaining, 4) + ' divine &nbsp;&middot;&nbsp; ' +
       '<strong>Total expected:</strong> ' + fmt(advisorBanked + remaining, 4) + ' divine';
-
-    var stateLines = advisorUnits.map(function (u) {
-      if (u.type === 'orphan') return '&bull; ' + cropLabel(u.colour, u.tiers) + ' — single crop, no wilt risk';
-      return '&bull; Pair — [' + cropLabel(u.a.colour, u.a.tiers) + '] | [' + cropLabel(u.b.colour, u.b.tiers) + ']';
-    });
-    advisorStateEl.innerHTML = advisorUnits.length
-      ? '<p><strong>Current Grove state (confirmed real tiers):</strong></p><p>' + stateLines.join('<br>') + '</p>'
-      : '';
-
-    if (advisorUnits.length === 0 && !advisorConfirm) {
-      advisorRecommendationEl.innerHTML = '<strong>Done.</strong> All crops harvested.';
-      harvestBtn.style.display = 'none';
-      wiltPromptEl.style.display = 'none';
-      confirmPromptEl.style.display = 'none';
-      renderAdvisorLog();
-      return;
-    }
-
-    if (advisorConfirm) {
-      advisorRecommendationEl.innerHTML = '<strong>Confirm what actually happened</strong> before the next recommendation.';
-      harvestBtn.style.display = 'none';
-      wiltPromptEl.style.display = 'none';
-      renderConfirmForm();
-    } else if (advisorPending) {
-      advisorRecommendationEl.innerHTML = '<strong>Waiting for outcome:</strong> report whether the ' +
-        COLOURS[advisorPending.otherColour].label + ' partner survived the wilt roll before continuing.';
-      harvestBtn.style.display = 'none';
-      wiltPromptEl.style.display = 'flex';
-      confirmPromptEl.style.display = 'none';
-    } else {
-      var action = advisorSolver.solve(advisorUnits).bestAction;
-      var immediate = advisorSolver.divineValue(action.colour, action.tiers);
-      advisorRecommendationEl.innerHTML = '<strong>Recommended next harvest:</strong> ' +
-        cropLabel(action.colour, action.tiers) +
-        (action.member === 'orphan' ? ' (single crop)' : ' (from Pair ' + (action.unitIndex + 1) + ', slot ' + action.member.toUpperCase() + ')') +
-        '<br>Banks ' + fmt(immediate, 4) + ' divine now' +
-        (action.member === 'orphan' ? '.' : ', and gives the other crop in that pair a ' + Math.round(WILT_SURVIVE_CHANCE * 100) + '% chance to survive the wilt.');
-      harvestBtn.style.display = '';
-      wiltPromptEl.style.display = 'none';
-      confirmPromptEl.style.display = 'none';
-    }
+    renderAdvisorUnitsList();
     renderAdvisorLog();
   }
 
@@ -820,71 +1089,16 @@
     return slots;
   }
 
-  function renderConfirmForm() {
-    var slots = triggeredSlots(advisorConfirm.restUnits, advisorConfirm.harvestedColour);
-    confirmFieldsEl.innerHTML = '';
-    if (slots.length === 0) {
-      // Nothing of a different colour was alive to trigger — nothing to confirm, auto-advance.
-      finishConfirm([]);
-      return;
-    }
-    slots.forEach(function (slot, si) {
-      var expected = applyExpectedUpgrade(slot.preTiers);
-      var row = document.createElement('div');
-      row.className = 'row';
-      row.style.marginTop = si === 0 ? '0' : '0.6rem';
-      row.style.alignItems = 'flex-end';
-
-      var label = document.createElement('span');
-      label.style.minWidth = '11rem';
-      label.style.fontSize = '0.85rem';
-      label.textContent = (slot.member === 'orphan' ? 'Single crop' : 'Pair ' + (slot.unitIndex + 1) + ' slot ' + slot.member.toUpperCase()) +
-        ' (' + COLOURS[slot.colour].label + '):';
-      row.appendChild(label);
-
-      var inputs = {};
-      [2, 3, 4].forEach(function (tier) {
-        var field = document.createElement('div');
-        field.className = 'field';
-        field.style.minWidth = '4.5rem';
-        var lab = document.createElement('label');
-        lab.textContent = 'T' + tier;
-        var inp = document.createElement('input');
-        inp.type = 'number'; inp.min = '0'; inp.step = '1';
-        inp.value = String(Math.round(expected[tier]));
-        inp.style.width = '4.5rem';
-        inp.dataset.slot = si; inp.dataset.tier = tier;
-        inputs[tier] = inp;
-        field.appendChild(lab); field.appendChild(inp);
-        row.appendChild(field);
-      });
-
-      var t1Note = document.createElement('span');
-      t1Note.style.fontSize = '0.8rem';
-      t1Note.style.color = 'var(--muted)';
-      t1Note.style.marginLeft = '0.5rem';
-      function updateT1Note() {
-        var used = [2, 3, 4].reduce(function (sum, t) { return sum + (parseInt(inputs[t].value, 10) || 0); }, 0);
-        var t1 = SEEDS_PER_CROP - used;
-        t1Note.textContent = 'T1: ' + t1 + (t1 < 0 ? ' (too many seeds — reduce the above)' : '');
-        t1Note.style.color = t1 < 0 ? '#c0503a' : 'var(--muted)';
-      }
-      [2, 3, 4].forEach(function (tier) { inputs[tier].addEventListener('input', updateT1Note); });
-      updateT1Note();
-      row.appendChild(t1Note);
-
-      confirmFieldsEl.appendChild(row);
-    });
-    confirmPromptEl.style.display = 'block';
-  }
-
-  function confirmTiers() {
+  // Reads the tier inputs embedded directly in each triggered crop's card (built by
+  // buildConfirmCropCard) rather than a separate fields list.
+  function confirmTiersFromCards() {
     var slots = triggeredSlots(advisorConfirm.restUnits, advisorConfirm.harvestedColour);
     var reported = {};
-    slots.forEach(function (slot, si) {
-      var t2 = Math.max(0, parseInt(confirmFieldsEl.querySelector('input[data-slot="' + si + '"][data-tier="2"]').value, 10) || 0);
-      var t3 = Math.max(0, parseInt(confirmFieldsEl.querySelector('input[data-slot="' + si + '"][data-tier="3"]').value, 10) || 0);
-      var t4 = Math.max(0, parseInt(confirmFieldsEl.querySelector('input[data-slot="' + si + '"][data-tier="4"]').value, 10) || 0);
+    slots.forEach(function (slot) {
+      var sel = 'input[data-unit="' + slot.unitIndex + '"][data-member="' + slot.member + '"]';
+      var t2 = Math.max(0, parseInt(advisorUnitsListEl.querySelector(sel + '[data-tier="2"]').value, 10) || 0);
+      var t3 = Math.max(0, parseInt(advisorUnitsListEl.querySelector(sel + '[data-tier="3"]').value, 10) || 0);
+      var t4 = Math.max(0, parseInt(advisorUnitsListEl.querySelector(sel + '[data-tier="4"]').value, 10) || 0);
       var t1 = Math.max(0, SEEDS_PER_CROP - t2 - t3 - t4);
       reported[slot.unitIndex + ':' + slot.member] = { 1: t1, 2: t2, 3: t3, 4: t4 };
     });
@@ -912,26 +1126,25 @@
     renderAdvisorRun();
   }
 
-  function harvestRecommended() {
-    var result = advisorSolver.solve(advisorUnits);
-    var action = result.bestAction;
-    var i = action.unitIndex;
-    var u = advisorUnits[i];
-    var rest = advisorUnits.slice(0, i).concat(advisorUnits.slice(i + 1));
-    var immediate = advisorSolver.divineValue(action.colour, action.tiers);
+  // Harvests any crop the player picks (unitIndex/member), not just the solver's
+  // recommendation — lets the player deviate and still keeps the advisor's state in sync.
+  function harvestCrop(unitIndex, member) {
+    var u = advisorUnits[unitIndex];
+    var colour = member === 'orphan' ? u.colour : u[member].colour;
+    var tiers = member === 'orphan' ? u.tiers : u[member].tiers;
+    var rest = advisorUnits.slice(0, unitIndex).concat(advisorUnits.slice(unitIndex + 1));
+    var immediate = advisorSolver.divineValue(colour, tiers);
     advisorBanked += immediate;
 
-    if (action.member === 'orphan') {
-      advisorLogLines.push('Harvested ' + COLOURS[action.colour].label + ' (single crop) — banked ' + fmt(immediate, 4) + ' divine.');
-      advisorConfirm = { restUnits: rest, harvestedColour: action.colour };
-      renderAdvisorRun();
+    if (member === 'orphan') {
+      advisorLogLines.push('Harvested ' + COLOURS[colour].label + ' (single crop) — banked ' + fmt(immediate, 4) + ' divine.');
+      advisorConfirm = { restUnits: rest, harvestedColour: colour };
     } else {
-      var chosen = u[action.member];
-      var other = action.member === 'a' ? u.b : u.a;
-      advisorPending = { rest: rest, harvestedColour: chosen.colour, otherColour: other.colour, otherTiers: other.tiers };
-      advisorLogLines.push('Harvested ' + COLOURS[action.colour].label + ' from Pair ' + (i + 1) + ' — banked ' + fmt(immediate, 4) + ' divine.');
-      renderAdvisorRun();
+      var other = member === 'a' ? u.b : u.a;
+      advisorPending = { rest: rest, harvestedColour: colour, otherColour: other.colour, otherTiers: other.tiers };
+      advisorLogLines.push('Harvested ' + COLOURS[colour].label + ' from Pair ' + (unitIndex + 1) + ' slot ' + member.toUpperCase() + ' — banked ' + fmt(immediate, 4) + ' divine.');
     }
+    renderAdvisorRun();
   }
 
   function reportWiltOutcome(survived) {
@@ -948,15 +1161,11 @@
     renderAdvisorRun();
   }
 
-  renderAdvisorPairsList();
-  document.getElementById('addPairBtn').addEventListener('click', addAdvisorPair);
-  document.getElementById('removePairBtn').addEventListener('click', removeAdvisorPair);
+  renderAdvisorSlotsList();
+  document.getElementById('addPairBtn').addEventListener('click', addAdvisorPairSlot);
+  document.getElementById('addSingleBtn').addEventListener('click', addAdvisorSingleSlot);
   document.getElementById('startAdvisorBtn').addEventListener('click', startAdvisor);
   document.getElementById('resetAdvisorBtn').addEventListener('click', resetAdvisor);
-  harvestBtn.addEventListener('click', harvestRecommended);
-  document.getElementById('wiltSurvivedBtn').addEventListener('click', function () { reportWiltOutcome(true); });
-  document.getElementById('wiltDiedBtn').addEventListener('click', function () { reportWiltOutcome(false); });
-  document.getElementById('confirmTiersBtn').addEventListener('click', confirmTiers);
 
   reloadPricesBtn.addEventListener('click', function () { loadCachedPrices(); });
   leagueSelect.addEventListener('change', function () { if (priceCache) applyLeaguePrices(); });
