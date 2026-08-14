@@ -189,6 +189,34 @@
     </div>
 
     <div class="panel">
+      <h2>Yield multipliers</h2>
+      <div class="row">
+        <div class="field">
+          <label for="multIncreasedLifeforce">Increased lifeforce</label>
+          <input id="multIncreasedLifeforce" type="number" min="0" step="1" value="18" />
+        </div>
+        <div class="field">
+          <label for="multLifeforceDupe">Lifeforce duplicate chance</label>
+          <input id="multLifeforceDupe" type="number" min="0" step="1" value="10" />
+        </div>
+        <div class="field">
+          <label for="multMonsterDupe">Monster duplicate chance</label>
+          <input id="multMonsterDupe" type="number" min="0" step="1" value="6" />
+        </div>
+        <div class="field">
+          <label for="multMapIiq">Map IIQ</label>
+          <input id="multMapIiq" type="number" min="0" step="1" value="0" />
+        </div>
+      </div>
+      <p class="notes" style="margin-top:0.6rem;">
+        All %, multiplied straight onto the displayed profit figures below (e.g. 18% + 10% + 6% + 0% &rarr;
+        &times;1.18 &times;1.10 &times;1.06 &times;1.00). These don't change which Atlas allocation is
+        optimal, only the divine amounts shown, so they're applied after the simulation rather than fed
+        into it.
+      </p>
+    </div>
+
+    <div class="panel">
       <h2>All 91 reduction configurations, ranked by exact expected value per Grove under optimal play</h2>
       <div class="table-scroll">
         <table>
@@ -316,6 +344,17 @@
     var lf = lfPerDivineInputs();
     function perUnit(lfPerDiv) { return lfPerDiv > 0 ? 1 / lfPerDiv : 0; }
     return [perUnit(lf.primal), perUnit(lf.vivid), perUnit(lf.wild)];
+  }
+
+  // Display-only scaling on top of the solved EV: none of these change which reduction
+  // configuration is optimal (a uniform multiplier across every row doesn't affect ranking),
+  // so they're applied at render time rather than fed into the solver/simulation.
+  var MULT_IDS = ['multIncreasedLifeforce', 'multLifeforceDupe', 'multMonsterDupe', 'multMapIiq'];
+  function yieldMultiplier() {
+    return MULT_IDS.reduce(function (acc, id) {
+      var v = parseFloat(document.getElementById(id).value);
+      return acc * (1 + (isNaN(v) ? 0 : v) / 100);
+    }, 1);
   }
 
   function fmt(n, digits) {
@@ -533,6 +572,7 @@
     }
 
     var rows = simCache.slice().sort(function (a, b) { return b.ev - a.ev; });
+    var mult = yieldMultiplier();
 
     rows.forEach(function (r, idx) {
       var tr = document.createElement('tr');
@@ -561,7 +601,7 @@
 
       var evTd = document.createElement('td');
       evTd.className = 'ev';
-      evTd.textContent = fmt(r.ev, 4);
+      evTd.textContent = fmt(r.ev * mult, 4);
       tr.appendChild(evTd);
 
       resultsBody.appendChild(tr);
@@ -935,6 +975,9 @@
   runBtn.addEventListener('click', function () { runSimulation(); });
   COLOURS.forEach(function (c) {
     document.getElementById(c.input).addEventListener('input', renderTable);
+  });
+  MULT_IDS.forEach(function (id) {
+    document.getElementById(id).addEventListener('input', renderTable);
   });
 
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
