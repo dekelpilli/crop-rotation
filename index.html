@@ -212,9 +212,9 @@
       <h2>Simulation settings</h2>
       <div class="row">
         <div class="field">
-          <label for="trials">Trials per configuration</label>
-          <input id="trials" type="number" min="200" max="20000" step="100" value="4000" />
-          <span class="hint">Higher = less noise, slower to run.</span>
+          <label for="trials">Play-outs per Grove composition</label>
+          <input id="trials" type="number" min="200" max="20000" step="100" value="2000" />
+          <span class="hint">Real upgrade rolls per composition. Higher = less noise, slower to run.</span>
         </div>
         <button id="runBtn" type="button">Run simulation</button>
       </div>
@@ -223,7 +223,7 @@
     </div>
 
     <div class="panel">
-      <h2>All 91 reduction configurations, ranked by exact expected value per Grove under optimal play</h2>
+      <h2>All 91 reduction configurations, ranked by expected value per Grove under best play on real upgrade rolls</h2>
       <div class="table-scroll">
         <table>
           <thead>
@@ -367,26 +367,9 @@
     return tiers[1] * lfPerTier[1] + tiers[2] * lfPerTier[2] + tiers[3] * lfPerTier[3] + tiers[4] * lfPerTier[4];
   }
 
-  function samplePairCount() {
-    var r = Math.random(), acc = 0;
-    for (var i = 0; i < PAIR_COUNT_DIST.length; i++) {
-      acc += PAIR_COUNT_DIST[i].p;
-      if (r < acc) return PAIR_COUNT_DIST[i].n;
-    }
-    return PAIR_COUNT_DIST[PAIR_COUNT_DIST.length - 1].n;
-  }
-
-  function drawColour(weights) {
-    var sum = weights[0] + weights[1] + weights[2];
-    var r = Math.random() * sum, acc = 0;
-    for (var i = 0; i < 3; i++) {
-      acc += weights[i];
-      if (r < acc) return i;
-    }
-    return 2;
-  }
-
-  // --- Exact expectimax solver -------------------------------------------
+  // --- Certainty-equivalent expectimax solver ----------------------------
+  // Exact for VALUING a fixed line of play, and cheap enough to drive ordering decisions,
+  // but it is not the number to report: see makeRealPlay() below for what it misses.
   // Chaos value is a LINEAR function of tier counts, and the expected-value
   // tier-upgrade transition (T1->T2->T3->T4 at fixed per-seed probabilities)
   // is also linear (matrix multiplication on the tier vector). So E[value] =
@@ -524,15 +507,151 @@
     return { solve: solve, rankActions: rankActions, divineValue: divineValue, memo: memo };
   }
 
-  // Draws one random Grove composition and returns its exact optimal expected divine value,
-  // playing every decision optimally (including reacting to wilt outcomes) via the solver above.
-  function solveRandomGrove(weights, solver) {
-    var numPairs = samplePairCount();
-    var units = [];
-    for (var i = 0; i < numPairs; i++) {
-      units.push(freshPair(drawColour(weights), drawColour(weights)));
+  // --- Real-roll play-out -------------------------------------------------
+  // The DP above is exact only where no decision depends on how the upgrade dice actually
+  // land. The moment the player picks WHICH crop to bank, value becomes a max over random
+  // outcomes, and collapsing to expected tiers first throws away everything that choice is
+  // worth. A same-colour pair is the clearest case: both members carry the same expected
+  // tier vector, so the DP cannot see that you get to keep whichever one rolled better —
+  // it prices (Wild,Wild)+(Vivid,Vivid) identically to (Wild,Wild)+(Vivid,Wild), when the
+  // former is really worth ~14% more.
+  //
+  // So Groves are played out on real dice instead. Each crop carries its true tier counts
+  // alongside a cheap handle on the certainty-equivalent tiers it would have had — its
+  // starting tiers plus how many trigger rounds it has lived through. Ordering still comes
+  // from the memoised DP, looked up through that handle so the state space stays small and
+  // repeating, while the crop actually banked is chosen and valued on its real roll.
+  //
+  // ponytail: the continuation estimate still reads survivors at their expected tiers, so
+  // this scores ~0.4% under a full real-outcome expectimax (which is ~40x too slow to run
+  // here). Swap in a deeper policy if that 0.4% ever matters more than the 11% it recovers.
+  function makeRealPlay(solver) {
+    var ceCache = new Map();   // baseKey|rounds -> certainty-equivalent tiers
+    var rankCache = new Map(); // canonical-state key -> rankActions result
+
+    function ceTiers(crop) {
+      var key = crop.baseKey + '|' + crop.rounds, hit = ceCache.get(key);
+      if (!hit) {
+        hit = crop.base;
+        for (var r = 0; r < crop.rounds; r++) hit = applyExpectedUpgrade(hit);
+        ceCache.set(key, hit);
+      }
+      return hit;
     }
-    return solver.solve(units).value;
+    function start(crop) {
+      return { colour: crop.colour, tiers: crop.tiers, base: crop.tiers, baseKey: tiersKey(crop.tiers), rounds: 0 };
+    }
+    function bump(crop, harvestedColour) {
+      if (crop.colour === harvestedColour) return crop;
+      return { colour: crop.colour, tiers: sampleRealUpgrade(crop.tiers), base: crop.base, baseKey: crop.baseKey, rounds: crop.rounds + 1 };
+    }
+    function orphan(crop) {
+      return { type: 'orphan', colour: crop.colour, tiers: crop.tiers, base: crop.base, baseKey: crop.baseKey, rounds: crop.rounds };
+    }
+    function cropKey(crop) { return crop.colour + crop.baseKey + '#' + crop.rounds; }
+    function stateKey(units) {
+      var out = '';
+      for (var i = 0; i < units.length; i++) {
+        var u = units[i];
+        out += u.type === 'orphan' ? 'O' + cropKey(u) + ';' : 'P' + cropKey(u.a) + ',' + cropKey(u.b) + ';';
+      }
+      return out;
+    }
+    // rankActions() is order-sensitive — its unitIndex names a position in the array it was
+    // handed — so this cache keys on the units in array order, never on the DP's sorted key.
+    function ranked(units) {
+      var key = stateKey(units), hit = rankCache.get(key);
+      if (!hit) {
+        hit = solver.rankActions(units.map(function (u) {
+          if (u.type === 'orphan') return { type: 'orphan', colour: u.colour, tiers: ceTiers(u) };
+          return { type: 'pair', a: { colour: u.a.colour, tiers: ceTiers(u.a) }, b: { colour: u.b.colour, tiers: ceTiers(u.b) } };
+        })).map(function (c) {
+          return { unitIndex: c.unitIndex, member: c.member, value: c.value, ceValue: solver.divineValue(c.colour, c.tiers) };
+        });
+        rankCache.set(key, hit);
+      }
+      return hit;
+    }
+
+    return function play(units) {
+      var u = units.map(function (x) {
+        return x.type === 'orphan' ? orphan(start(x)) : { type: 'pair', a: start(x.a), b: start(x.b) };
+      });
+      var total = 0;
+      while (u.length > 0) {
+        var candidates = ranked(u), best = null, bestScore = -Infinity;
+        for (var c = 0; c < candidates.length; c++) {
+          var cand = candidates[c], unit = u[cand.unitIndex];
+          var crop = cand.member === 'orphan' ? unit : unit[cand.member];
+          // swap the certainty-equivalent immediate the DP assumed for the real roll banked
+          var score = cand.value - cand.ceValue + solver.divineValue(crop.colour, crop.tiers);
+          if (score > bestScore) { bestScore = score; best = cand; }
+        }
+        var i = best.unitIndex, chosenUnit = u[i], rest = u.slice(0, i).concat(u.slice(i + 1));
+        var banked = best.member === 'orphan' ? chosenUnit : chosenUnit[best.member];
+        total += solver.divineValue(banked.colour, banked.tiers);
+        var next = rest.map(function (x) {
+          return x.type === 'orphan'
+            ? orphan(bump(x, banked.colour))
+            : { type: 'pair', a: bump(x.a, banked.colour), b: bump(x.b, banked.colour) };
+        });
+        if (best.member !== 'orphan' && Math.random() < WILT_SURVIVE_CHANCE) {
+          next.push(orphan(bump(best.member === 'a' ? chosenUnit.b : chosenUnit.a, banked.colour)));
+        }
+        u = next;
+      }
+      return total;
+    };
+  }
+
+  // --- Grove composition mix ----------------------------------------------
+  // A Grove is a multiset of unordered colour pairs, so across the 3/4/5-pair sizes there
+  // are only 434 distinct compositions the game can deal. Playing each one out once and then
+  // weighting them per configuration beats re-drawing random Groves for all 91 configurations
+  // twice over: the composition mix becomes exact arithmetic rather than a sample, and every
+  // configuration is scored against the SAME estimates, so the differences between
+  // configurations survive instead of drowning in per-configuration sampling noise.
+  var PAIR_TYPES = [[0, 0], [0, 1], [0, 2], [1, 1], [1, 2], [2, 2]];
+  var FACTORIAL = [1, 1, 2, 6, 24, 120];
+
+  function groveCompositions() {
+    var out = [];
+    PAIR_COUNT_DIST.forEach(function (size) {
+      var counts = [0, 0, 0, 0, 0, 0];
+      (function choose(start, left) {
+        if (left === 0) {
+          var units = [], arrangements = FACTORIAL[size.n];
+          counts.forEach(function (c, i) {
+            arrangements /= FACTORIAL[c];
+            for (var k = 0; k < c; k++) units.push(freshPair(PAIR_TYPES[i][0], PAIR_TYPES[i][1]));
+          });
+          out.push({ counts: counts.slice(), units: units, weight: size.p * arrangements, ev: 0 });
+          return;
+        }
+        for (var i = start; i < PAIR_TYPES.length; i++) { counts[i]++; choose(i, left - 1); counts[i]--; }
+      })(0, size.n);
+    });
+    return out;
+  }
+
+  // Chance of drawing each unordered pair type, given the per-colour draw weights.
+  function pairTypeProbabilities(weights) {
+    var sum = weights[0] + weights[1] + weights[2];
+    return PAIR_TYPES.map(function (t) {
+      return (t[0] === t[1] ? 1 : 2) * weights[t[0]] * weights[t[1]] / (sum * sum);
+    });
+  }
+
+  function compositionMixValue(compositions, weights) {
+    var pt = pairTypeProbabilities(weights), ev = 0;
+    for (var c = 0; c < compositions.length; c++) {
+      var comp = compositions[c], p = comp.weight;
+      for (var i = 0; i < PAIR_TYPES.length; i++) {
+        if (comp.counts[i]) p *= Math.pow(pt[i], comp.counts[i]);
+      }
+      ev += p * comp.ev;
+    }
+    return ev;
   }
 
   function buildConfigurations() {
@@ -550,39 +669,38 @@
 
   async function runSimulation() {
     var packSize = parseFloat(packSizeInput.value) || 0;
-    var trials = Math.max(200, Math.min(20000, parseInt(trialsInput.value, 10) || 1500));
+    var rollouts = Math.max(200, Math.min(20000, parseInt(trialsInput.value, 10) || 2000));
     var lfPerTier = lifeforcePerSeedTier(packSize);
-    var configs = buildConfigurations();
     var priceArr = divinePriceArray();
     // One solver (and its memoization cache) for the whole run: decisions only depend on
     // price/pack-size, both fixed for the duration of a run, so sub-states discovered while
-    // solving one config's random Groves are often reusable when solving the next.
+    // playing out one composition are almost always reusable for the next.
     var solver = makeSolver(priceArr, lfPerTier);
+    var play = makeRealPlay(solver);
+    var compositions = groveCompositions();
 
     runBtn.disabled = true;
     reloadPricesBtn.disabled = true;
     progressBar.style.width = '0%';
-    setSimStatus('Solving ' + configs.length + ' configurations × ' + trials + ' Grove draws each (optimal play, exact solver)...');
+    setSimStatus('Playing out ' + compositions.length + ' Grove compositions × ' + rollouts + ' real-roll runs each...');
 
-    var results = [];
-    var batchSize = 3;
-    for (var i = 0; i < configs.length; i += batchSize) {
-      var batchEnd = Math.min(i + batchSize, configs.length);
+    var batchSize = 10;
+    for (var i = 0; i < compositions.length; i += batchSize) {
+      var batchEnd = Math.min(i + batchSize, compositions.length);
       for (var j = i; j < batchEnd; j++) {
-        var cfg = configs[j];
-        var weights = [1 - cfg.reduction[0] / 100, 1 - cfg.reduction[1] / 100, 1 - cfg.reduction[2] / 100];
-        var total = 0;
-        for (var t = 0; t < trials; t++) {
-          total += solveRandomGrove(weights, solver);
-        }
-        results.push({ reduction: cfg.reduction, ev: total / trials });
+        var comp = compositions[j], total = 0;
+        for (var t = 0; t < rollouts; t++) total += play(comp.units);
+        comp.ev = total / rollouts;
       }
-      progressBar.style.width = Math.round((batchEnd / configs.length) * 100) + '%';
+      progressBar.style.width = Math.round((batchEnd / compositions.length) * 100) + '%';
       // eslint-disable-next-line no-await-in-loop
       await new Promise(function (resolve) { setTimeout(resolve, 0); });
     }
 
-    simCache = results;
+    simCache = buildConfigurations().map(function (cfg) {
+      var weights = [1 - cfg.reduction[0] / 100, 1 - cfg.reduction[1] / 100, 1 - cfg.reduction[2] / 100];
+      return { reduction: cfg.reduction, ev: compositionMixValue(compositions, weights) };
+    });
     simCachePrices = priceArr;
     runBtn.disabled = false;
     reloadPricesBtn.disabled = false;
