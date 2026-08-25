@@ -441,8 +441,9 @@
   }
 
   // Builds a solver bound to a specific price/pack-size context (both affect expected divine value).
-  // Returns { solve(units) -> { value, bestAction } }. bestAction carries the acted-on crop's
-  // own {colour, tiers} so callers don't need to re-derive it from unitIndex/member.
+  // Returns { solve(units) -> { value } }. solve() memoises on an order-insensitive canonical
+  // key, so it can only ever hand back a value — anything that names a *position* in the
+  // caller's units array has to come from rankActions(), which recomputes per call.
   function makeSolver(priceArr, lfPerTier) {
     function divineValue(colour, tiers) {
       return cropValue(tiers, lfPerTier) * priceArr[colour];
@@ -450,19 +451,19 @@
 
     var memo = new Map();
     function solve(units) {
-      if (units.length === 0) return { value: 0, bestAction: null };
+      if (units.length === 0) return { value: 0 };
       var key = canonicalKey(units);
       var cached = memo.get(key);
       if (cached) return cached;
 
-      var best = -Infinity, bestAction = null;
+      var best = -Infinity;
       for (var i = 0; i < units.length; i++) {
         var u = units[i];
         var rest = units.slice(0, i).concat(units.slice(i + 1));
         if (u.type === 'orphan') {
           var immediate = divineValue(u.colour, u.tiers);
           var total = immediate + solve(applyTrigger(rest, u.colour)).value;
-          if (total > best) { best = total; bestAction = { unitIndex: i, member: 'orphan', colour: u.colour, tiers: u.tiers }; }
+          if (total > best) best = total;
         } else {
           ['a', 'b'].forEach(function (member) {
             var chosen = u[member], other = member === 'a' ? u.b : u.a;
@@ -473,18 +474,18 @@
             var vDie = solve(triggeredRest).value;
             var future = WILT_SURVIVE_CHANCE * vSurvive + (1 - WILT_SURVIVE_CHANCE) * vDie;
             var total2 = immediate2 + future;
-            if (total2 > best) { best = total2; bestAction = { unitIndex: i, member: member, colour: chosen.colour, tiers: chosen.tiers }; }
+            if (total2 > best) best = total2;
           });
         }
       }
-      var result = { value: best, bestAction: bestAction };
+      var result = { value: best };
       memo.set(key, result);
       return result;
     }
 
     // Same enumeration as solve() above, but returns EVERY candidate action's exact value
-    // (not just the winner) so a caller can detect near-ties the plain solve()/bestAction
-    // API would silently hide behind an arbitrary iteration-order tie-break. Cheap to call —
+    // (not just the winner) so a caller can detect near-ties a bare max would silently hide
+    // behind an arbitrary iteration-order tie-break. Cheap to call —
     // every sub-value it needs is already memoized by solve() itself.
     function rankActions(units) {
       var candidates = [];
@@ -896,13 +897,19 @@
       };
     });
   }
+  // A surviving partner sat through the harvest's trigger too, unless it shares the
+  // harvested colour — same rule the solver applies, on real rolls instead of expectations.
+  function survivorTiers(other, harvestedColour) {
+    return other.colour === harvestedColour ? other.tiers : sampleRealUpgrade(other.tiers);
+  }
+
   // Plays out one full real (randomly-sampled) Grove from `units`, using the ordinary
   // certainty-equivalent solver for every decision along the way — this is only ever used
   // to compare a handful of tied opening candidates, never for the headline EV figures.
   function rolloutRealPlay(units, solver) {
     var u = units, total = 0;
     while (u.length > 0) {
-      var action = solver.solve(u).bestAction;
+      var action = solver.rankActions(u)[0];
       var i = action.unitIndex, unit = u[i];
       var rest = u.slice(0, i).concat(u.slice(i + 1));
       total += solver.divineValue(action.colour, action.tiers);
@@ -912,7 +919,7 @@
         var other = action.member === 'a' ? unit.b : unit.a;
         var triggeredRest = sampleRealTrigger(rest, action.colour);
         u = Math.random() < WILT_SURVIVE_CHANCE
-          ? triggeredRest.concat([{ type: 'orphan', colour: other.colour, tiers: other.tiers }])
+          ? triggeredRest.concat([{ type: 'orphan', colour: other.colour, tiers: survivorTiers(other, action.colour) }])
           : triggeredRest;
       }
     }
@@ -956,7 +963,7 @@
         } else {
           var other = member === 'a' ? unit.b : unit.a;
           nextUnits = Math.random() < WILT_SURVIVE_CHANCE
-            ? triggeredRest.concat([{ type: 'orphan', colour: other.colour, tiers: other.tiers }])
+            ? triggeredRest.concat([{ type: 'orphan', colour: other.colour, tiers: survivorTiers(other, candidate.colour) }])
             : triggeredRest;
         }
         sum += immediate + rolloutRealPlay(nextUnits, solver);
