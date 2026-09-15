@@ -1,0 +1,23 @@
+{
+  "updatedAt": "2026-09-15T23:51:13Z",
+  "leagues": {
+    "Allflame": {
+      "primal": 8093,
+      "vivid": 2114,
+      "wild": 11484,
+      "chaosPerDivine": 352.2
+    },
+    "Hardcore Allflame": {
+      "primal": 4110,
+      "vivid": 1266,
+      "wild": 5111,
+      "chaosPerDivine": 194.2
+    },
+    "Standard": {
+      "primal": 8123,
+      "vivid": 1339,
+      "wild": 9786,
+      "chaosPerDivine": 788.0
+    }
+  }
+}
